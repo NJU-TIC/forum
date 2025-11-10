@@ -13,12 +13,13 @@
     flake-utils.lib.eachSystem nixpkgs.lib.systems.flakeExposed (
       system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs { inherit system; config.allowUnfree=true; };
       in
       {
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             bun
+            mongodb-ce mongodb-cli
           ];
         };
       }

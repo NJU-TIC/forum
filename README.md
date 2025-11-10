@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NJU-TIC Forum
+
+A Next.js-based forum application with MongoDB backend for the NJU-TIC community.
+
+## Prerequisites
+
+- [Bun](https://bun.sh/) (v1.0+)
+- [MongoDB](https://www.mongodb.com/try/download/community) (running locally)
 
 ## Getting Started
 
-First, run the development server:
+### 1. Start MongoDB
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Using Homebrew (macOS)
+brew services start mongodb-community@6.0
+
+# Or using Docker
+docker run -d -p 27017:27017 --name mongo mongo
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Set up Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create a `.env.local` file in the project root with your configuration:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+MONGODB_URI=mongodb://localhost:27017/forum
+JWT_SECRET=your-secure-random-secret-here
+```
 
-## Learn More
+> **Note**: Replace `your-secure-random-secret-here` with a strong secret key for JWT signing.
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Install Dependencies
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+bun install
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4. Run the Development Server
 
-## Deploy on Vercel
+```bash
+bun run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The application will be available at `http://localhost:3000`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Application Structure
+
+- **Frontend**: Next.js components in `app/` directory
+- **API Routes**: Backend endpoints in `pages/api/`
+- **Models**: MongoDB schemas in `models/`
+- **State Management**: Auth context in `components/auth/`
+
+## Key Features
+
+✅ Email/password authentication
+✅ Create and manage posts
+✅ Post engagement (likes, bookmarks, share)
+✅ Admin dashboard for content moderation
+
+## Production Deployment
+
+For production, set appropriate environment variables and run:
+
+```bash
+bun run build
+bun run start
+```
