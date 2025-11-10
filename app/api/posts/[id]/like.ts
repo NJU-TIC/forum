@@ -1,21 +1,21 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import dbConnect from '../../../../lib/mongodb';
-import Post from '../../../../models/Post';
+import dbConnect from '../../../../../lib/mongodb';
+import Post from '../../../../../models/Post';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
 /**
- * API handler for deleting a specific post.
- * Requires DELETE method and a valid JWT token.
- * Users can only delete their own posts.
+ * API handler for liking/unliking a post.
+ * Requires POST method and a valid JWT token.
+ * Toggles the like status of a post for the authenticated user.
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'DELETE') {
+  if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
-  await dbConnect();
+  await dbConnect(); // Connect to MongoDB
 
   // Authenticate user with JWT
   const authHeader = req.headers.authorization;
@@ -33,15 +33,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    // Check if the authenticated user is the author of the post
-    if (post.author.toString() !== decoded.userId) {
-      return res.status(403).json({ message: 'You can only delete your own posts' });
+    const userId = decoded.userId; // ID of the authenticated user
+    const index = post.likes.findIndex(likeId => likeId.toString() === userId); // Check if user already liked the post
+
+    if (index >= 0) {
+      // If already liked, unlike (remove from likes array)
+      post.likes.splice(index, 1);
+    } else {
+      // If not liked, like (add to likes array)
+      post.likes.push(userId);
     }
 
-    await Post.deleteOne({ _id: id }); // Delete the post
-    res.status(200).json({ message: 'Post deleted successfully' });
+    await post.save(); // Save the updated post
+
+    // Return updated likes count
+    res.status(200).json({ likesCount: post.likes.length });
   } catch (error) {
-    console.error('Delete post error:', error); // Log the error for debugging
+    console.error('Like/Unlike post error:', error); // Log the error for debugging
     res.status(401).json({ message: 'Invalid or expired token' });
   }
 }
