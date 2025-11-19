@@ -8,6 +8,7 @@ import {
 import bcrypt from "bcrypt";
 import { ObjectId, UpdateFilter } from "mongodb";
 import { QUser } from "@/schema/user";
+import { QPost } from "@/schema/post";
 
 // User operations
 export async function createUser(userData: unknown) {
@@ -142,7 +143,7 @@ export async function createPost(postData: unknown) {
   };
 }
 
-export async function findPostById(id: string) {
+export async function findPostById(id: string): Promise<QPost | null> {
   const postsCollection = await getCollection("posts");
   const post = await postsCollection.findOne({ _id: new ObjectId(id) });
 
@@ -157,7 +158,7 @@ export async function findPostById(id: string) {
   };
 }
 
-export async function findAllPosts() {
+export async function findAllPosts(): Promise<QPost[]> {
   const postsCollection = await getCollection("posts");
   const posts = await postsCollection.find({}).toArray();
 
@@ -174,7 +175,7 @@ export async function findAllPosts() {
     .filter((post) => post !== null);
 }
 
-export async function findAllPostsWithAuthors() {
+export async function findAllPostsWithAuthors(): Promise<QPost[]> {
   const postsCollection = await getCollection("posts");
   const usersCollection = await getCollection("users");
 
@@ -211,14 +212,14 @@ export async function findAllPostsWithAuthors() {
 
       return {
         ...validatedPost,
-        _id: post.id.toString(),
+        _id: post._id.toString(),
         author,
       };
     })
     .filter((post) => post !== null);
 }
 
-export async function findPostsByAuthor(authorId: string) {
+export async function findPostsByAuthor(authorId: string): Promise<QPost[]> {
   const postsCollection = await getCollection("posts");
   const posts = await postsCollection.find({ author: authorId }).toArray();
 
@@ -235,7 +236,10 @@ export async function findPostsByAuthor(authorId: string) {
     .filter((post) => post !== null);
 }
 
-export async function updatePostById(id: string, updates: unknown) {
+export async function updatePostById(
+  id: string,
+  updates: unknown,
+): Promise<QPost | null> {
   const postsCollection = await getCollection("posts");
 
   // Validate updates
@@ -273,7 +277,7 @@ export async function deletePostById(id: string): Promise<boolean> {
   return result.deletedCount > 0;
 }
 
-export async function incrementPostLikes(id: string) {
+export async function incrementPostLikes(id: string): Promise<QPost | null> {
   const postsCollection = await getCollection("posts");
 
   const result = await postsCollection.findOneAndUpdate(
@@ -296,7 +300,7 @@ export async function incrementPostLikes(id: string) {
   };
 }
 
-export async function incrementPostForwards(id: string) {
+export async function incrementPostForwards(id: string): Promise<QPost | null> {
   const postsCollection = await getCollection("posts");
 
   const result = await postsCollection.findOneAndUpdate(
@@ -323,12 +327,12 @@ export async function addCommentToPost(
   postId: string,
   authorId: string,
   content: string,
-) {
+): Promise<QPost | null> {
   const postsCollection = await getCollection("posts");
 
   const comment = {
     author: authorId,
-    body: { content },
+    body: { content: content },
   };
 
   const result = await postsCollection.findOneAndUpdate(
@@ -336,8 +340,8 @@ export async function addCommentToPost(
     {
       $push: {
         "interactions.comments": comment,
-      },
-      // $set: { updatedAt: new Date().toISOString() },
+      } as unknown as UpdateFilter<Document>,
+      $set: { updatedAt: new Date().toISOString() },
     },
     { returnDocument: "after" },
   );

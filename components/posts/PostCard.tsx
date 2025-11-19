@@ -1,13 +1,10 @@
 import { Card } from "@/components/ui/card";
-import { Post as PostType } from "@/schema/post";
-import { User } from "@/schema/user";
+import { QPost } from "@/schema/post";
+import { QUser } from "@/schema/user";
 
 interface PostCardProps {
-  post: PostType & {
-    _id: string;
-    author: User & {
-      _id: string;
-    };
+  post: QPost & {
+    author: QUser;
     createdAt: Date;
   };
 }

@@ -11,18 +11,8 @@ async function getPosts() {
 
         return {
           ...post,
-          createdAt: new Date(post.createdAt || new Date().toISOString()),
-          _id: post._id || "",
-          author: post.author || null,
-          title: post.title || "",
-          body: post.body || { content: "" },
-          interactions: post.interactions || {
-            likes: 0,
-            forwards: 0,
-            comments: [],
-          },
-          updatedAt: post.updatedAt || new Date().toISOString(),
-        };
+          createdAt: new Date(post.createdAt),
+        } as Parameters<typeof PostCard>[0]["post"];
       })
       .filter((post): post is NonNullable<typeof post> => post !== null);
   } catch (error) {
