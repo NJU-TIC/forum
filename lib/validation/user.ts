@@ -1,10 +1,10 @@
 import * as v from "valibot";
-import { UserSchema } from "../../schema/user";
+import { User, UserSchema } from "../../schema/user";
 
 /**
  * Validate user data using Valibot schema
  */
-export function validateUser(data: unknown) {
+export function validateUser(data: unknown): User {
   return v.parse(UserSchema, data);
 }
 
@@ -19,6 +19,8 @@ export function validateUserSafe(data: unknown) {
 /**
  * Check if data matches user schema
  */
-export function isValidUser(data: unknown): data is v.InferOutput<typeof UserSchema> {
+export function isValidUser(
+  data: unknown,
+): data is v.InferOutput<typeof UserSchema> {
   return v.safeParse(UserSchema, data).success;
 }

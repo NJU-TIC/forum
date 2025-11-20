@@ -25,8 +25,8 @@ export const PostSchema = v.object({
   title: v.string(),
   body: PostBodySchema,
   interactions: PostInteractionSchema,
-  createdAt: v.string(),
-  updatedAt: v.string(),
+  createdAt: v.date(),
+  updatedAt: v.date(),
 });
 
 export const QueriedPostSchema = v.intersect([

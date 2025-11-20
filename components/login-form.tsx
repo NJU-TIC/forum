@@ -59,12 +59,12 @@ export function LoginForm({
         <form action={handleAction}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <FieldLabel htmlFor="username">Username</FieldLabel>
               <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="m@example.com"
+                id="username"
+                name="username"
+                type="text"
+                placeholder="johndoe"
                 required
               />
               <FieldDescription>

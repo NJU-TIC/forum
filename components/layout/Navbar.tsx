@@ -60,20 +60,33 @@ const NavigationContent = ({ isMobile = false }: { isMobile?: boolean }) => (
   <NavigationMenuList
     className={isMobile ? "flex-col items-start gap-1" : "gap-1"}
   >
-    {isMobile && (
+    {isMobile ? (
       <>
         <TitleLink />
         <div className="border-t border-border/40 my-1"></div>
+        <NavLink href="/pages/home">
+          <FileText className="mr-2 h-4 w-4" />
+          Posts
+        </NavLink>
+        <NavLink href="/search">
+          <Search className="mr-2 h-4 w-4" />
+          Search
+        </NavLink>
+      </>
+    ) : (
+      <>
+        <TitleLink />
+        <div className="w-px h-6 bg-border/40 mx-1"></div>
+        <NavLink href="/posts">
+          <FileText className="mr-2 h-4 w-4" />
+          Posts
+        </NavLink>
+        <NavLink href="/search">
+          <Search className="mr-2 h-4 w-4" />
+          Search
+        </NavLink>
       </>
     )}
-    <NavLink href="/pages/home">
-      <FileText className="mr-2 h-4 w-4" />
-      Posts
-    </NavLink>
-    <NavLink href="/search">
-      <Search className="mr-2 h-4 w-4" />
-      Search
-    </NavLink>
   </NavigationMenuList>
 );
 
@@ -138,18 +151,7 @@ export function Navbar({ isLoggedIn = false }: NavbarProps) {
           {/* Desktop Navigation */}
           {!isMobile && (
             <NavigationMenu>
-              <NavigationMenuList className="gap-1">
-                <TitleLink />
-                <div className="w-px h-6 bg-border/40 mx-1"></div>
-                <NavLink href="/pages/home">
-                  <FileText className="mr-2 h-4 w-4" />
-                  Posts
-                </NavLink>
-                <NavLink href="/search">
-                  <Search className="mr-2 h-4 w-4" />
-                  Search
-                </NavLink>
-              </NavigationMenuList>
+              <NavigationContent isMobile={false} />
             </NavigationMenu>
           )}
         </div>

@@ -8,11 +8,11 @@ export const CredentialsSchema = v.object({
 
 export const UserSchema = v.object({
   name: v.string(),
-  id: v.string(),
+  email: v.string(),
   credentials: CredentialsSchema,
   isAdmin: v.boolean(),
-  createdAt: v.string(), // ISO string
-  updatedAt: v.string(), // ISO string
+  createdAt: v.date(),
+  updatedAt: v.date(),
 });
 
 export const QueriedUserSchema = v.intersect([

@@ -7,19 +7,12 @@ import {
 } from "../validation/post";
 import bcrypt from "bcrypt";
 import { ObjectId, UpdateFilter } from "mongodb";
-import { QUser } from "@/schema/user";
-import { QPost } from "@/schema/post";
+import { QUser, User } from "@/schema/user";
+import { Post, QPost } from "@/schema/post";
 
 // User operations
 export async function createUser(userData: unknown) {
   const validatedUser = validateUser(userData);
-
-  // Hash password if provided
-  if (validatedUser.credentials) {
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(validatedUser.credentials.hash, salt);
-    validatedUser.credentials = { salt, hash };
-  }
 
   const usersCollection = await getCollection<QUser>("users");
   const result = await usersCollection.insertOne(validatedUser as QUser);
@@ -45,9 +38,9 @@ export async function findUserById(id: string) {
   };
 }
 
-export async function findUserByCustomId(id: string) {
+export async function findUserByName(name: string) {
   const usersCollection = await getCollection("users");
-  const user = await usersCollection.findOne({ id });
+  const user = await usersCollection.findOne({ name });
 
   if (!user) return null;
 
@@ -89,7 +82,7 @@ export async function updateUserById(id: string, updates: unknown) {
   // Add updatedAt timestamp
   const updatesWithTimestamp = {
     ...validatedUpdates,
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date(),
   };
 
   const result = await usersCollection.findOneAndUpdate(
@@ -133,7 +126,7 @@ export async function generateCredentials(password: string) {
 
 // Post operations
 export async function createPost(postData: unknown) {
-  const validatedPost = validatePost(postData);
+  const validatedPost: Post = validatePost(postData);
   const postsCollection = await getCollection("posts");
   const result = await postsCollection.insertOne(validatedPost);
 
@@ -203,11 +196,18 @@ export async function findAllPostsWithAuthors(): Promise<QPost[]> {
 
   // Combine posts with author data
   return posts
-    .map((post) => {
+    .map((qpost) => {
+      console.log("Post:", qpost);
+      const post = {
+        ...qpost,
+        _id: qpost._id.toString(),
+      };
       const validatedPost = validateQueriedPostSafe(post);
+      console.log("Validated post", validatedPost);
       if (!validatedPost) return null;
 
       const author = authorMap.get(validatedPost.author);
+      console.log(`Post ${validatePost} author ${author}`);
       if (!author) return null;
 
       return {
@@ -251,7 +251,7 @@ export async function updatePostById(
   // Add updatedAt timestamp
   const updatesWithTimestamp = {
     ...validatedUpdates,
-    updatedAt: new Date().toISOString(),
+    updatedAt: new Date(),
   };
 
   const result = await postsCollection.findOneAndUpdate(
@@ -284,7 +284,7 @@ export async function incrementPostLikes(id: string): Promise<QPost | null> {
     { _id: new ObjectId(id) },
     {
       $inc: { "interactions.likes": 1 },
-      $set: { updatedAt: new Date().toISOString() },
+      $set: { updatedAt: new Date() },
     },
     { returnDocument: "after" },
   );
@@ -307,7 +307,7 @@ export async function incrementPostForwards(id: string): Promise<QPost | null> {
     { _id: new ObjectId(id) },
     {
       $inc: { "interactions.forwards": 1 },
-      $set: { updatedAt: new Date().toISOString() },
+      $set: { updatedAt: new Date() },
     },
     { returnDocument: "after" },
   );
@@ -341,7 +341,7 @@ export async function addCommentToPost(
       $push: {
         "interactions.comments": comment,
       } as unknown as UpdateFilter<Document>,
-      $set: { updatedAt: new Date().toISOString() },
+      $set: { updatedAt: new Date() },
     },
     { returnDocument: "after" },
   );

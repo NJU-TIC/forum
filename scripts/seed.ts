@@ -17,8 +17,8 @@ async function seedDatabase() {
       id: "admin-user-001",
       credentials: adminCredentials,
       isAdmin: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     const userCredentials = await generateCredentials("user123");
@@ -27,8 +27,8 @@ async function seedDatabase() {
       id: "regular-user-001",
       credentials: userCredentials,
       isAdmin: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     const anotherCredentials = await generateCredentials("another123");
@@ -37,8 +37,8 @@ async function seedDatabase() {
       id: "another-user-001",
       credentials: anotherCredentials,
       isAdmin: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     // Validate and create users
@@ -71,8 +71,8 @@ async function seedDatabase() {
           forwards: 2,
           comments: [],
         },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       {
         _id: "post-002",
@@ -87,8 +87,8 @@ async function seedDatabase() {
           forwards: 1,
           comments: [],
         },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       {
         _id: "post-003",
@@ -103,8 +103,8 @@ async function seedDatabase() {
           forwards: 3,
           comments: [],
         },
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     ];
 

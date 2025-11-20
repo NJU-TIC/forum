@@ -2,65 +2,58 @@
 
 import bcrypt from "bcrypt";
 import { cookies } from "next/headers";
+import {
+  createUser,
+  findUserByName,
+  findUserById,
+  findAllUsers,
+} from "@/lib/db";
 
-// Simple in-memory user storage (replace with database in production)
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  passwordHash: string;
-  createdAt: Date;
-}
-
-const users: User[] = [];
+// Use database functions instead of in-memory storage
 
 export async function signupAction(formData: FormData) {
   try {
-    const username = formData.get("username") as string;
+    const name = formData.get("username") as string;
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
     // Basic validation
-    if (!username || !email || !password) {
+    if (!name || !email || !password) {
       return { error: "Username, email, and password are required" };
     }
-
-    if (password.length < 8) {
-      return { error: "Password must be at least 8 characters long" };
-    }
+    const idFromEmail = email.split("@")[0]; // Use part before @ as user ID
 
     // Check if user already exists
-    const existingUser = users.find(
-      (user) => user.username === username || user.email === email,
-    );
-
+    const existingUser = await findUserByName(idFromEmail);
     if (existingUser) {
-      return { error: "Username or email already exists" };
+      // NOTE: The id generation isn't perfect
+      return { error: "User already exists" };
     }
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Create new user
-    const newUser: User = {
-      id: Math.random().toString(36).substring(2, 9),
-      username,
+    // Create new user in database
+    const userData = {
+      name,
       email,
-      passwordHash,
+      credentials: { salt, hash: passwordHash },
+      isAdmin: false,
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
-    users.push(newUser);
+    const newUser = await createUser(userData);
 
     // Set session cookie
     const cookieStore = await cookies();
     cookieStore.set(
       "session",
-      JSON.stringify({ userId: newUser.id, email: newUser.email }),
+      JSON.stringify({ userId: newUser._id, email: newUser.id }),
       {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: true,
         sameSite: "lax",
         maxAge: 60 * 60 * 24 * 7, // 7 days
       },
@@ -69,9 +62,9 @@ export async function signupAction(formData: FormData) {
     return {
       success: true,
       user: {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email,
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.id,
         createdAt: newUser.createdAt,
       },
     };
@@ -83,23 +76,26 @@ export async function signupAction(formData: FormData) {
 
 export async function loginAction(formData: FormData) {
   try {
-    const email = formData.get("email") as string;
+    const username = formData.get("username") as string;
     const password = formData.get("password") as string;
 
     // Basic validation
-    if (!email || !password) {
-      return { error: "Email and password are required" };
+    if (!username || !password) {
+      return { error: "Username and password are required" };
     }
 
-    // Find user by email
-    const user = users.find((user) => user.email === email);
+    // Find user by username
+    const user = await findUserByName(username);
 
-    if (!user) {
+    if (!user || !user.credentials) {
       return { error: "Invalid email or password" };
     }
 
     // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.credentials.hash,
+    );
 
     if (!isPasswordValid) {
       return { error: "Invalid email or password" };
@@ -109,7 +105,7 @@ export async function loginAction(formData: FormData) {
     const cookieStore = await cookies();
     cookieStore.set(
       "session",
-      JSON.stringify({ userId: user.id, email: user.email }),
+      JSON.stringify({ userId: user._id, email: user.id }),
       {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -121,9 +117,9 @@ export async function loginAction(formData: FormData) {
     return {
       success: true,
       user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
+        id: user._id,
+        name: user.name,
+        email: user.id,
         createdAt: user.createdAt,
       },
     };
@@ -154,16 +150,16 @@ export async function getCurrentUser() {
     }
 
     const session = JSON.parse(sessionCookie.value);
-    const user = users.find((user) => user.id === session.userId);
+    const user = await findUserById(session.userId);
 
     if (!user) {
       return null;
     }
 
     return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
+      id: user._id,
+      name: user.name,
+      email: user.id,
       createdAt: user.createdAt,
     };
   } catch (error) {
@@ -174,10 +170,11 @@ export async function getCurrentUser() {
 
 // Helper function for testing/debugging
 export async function getUsers() {
-  return users.map((user) => ({
-    id: user.id,
-    username: user.username,
-    email: user.email,
+  const allUsers = await findAllUsers();
+  return allUsers.map((user) => ({
+    id: user._id,
+    name: user.name,
+    email: user.id,
     createdAt: user.createdAt,
   }));
 }
