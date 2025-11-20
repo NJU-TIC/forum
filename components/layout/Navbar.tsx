@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   NavigationMenu,
@@ -14,7 +15,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { User, Menu, Search, FileText } from "lucide-react";
+import { User, Menu, Search, FileText, LogOut } from "lucide-react";
+import { logoutAction } from "@/app/actions/auth";
 
 interface NavbarProps {
   isLoggedIn?: boolean;
@@ -75,44 +77,9 @@ const NavigationContent = ({ isMobile = false }: { isMobile?: boolean }) => (
   </NavigationMenuList>
 );
 
-// Auth buttons component
-const AuthButtons = ({ isLoggedIn }: { isLoggedIn: boolean }) => (
-  <div className="flex items-center gap-3">
-    {!isLoggedIn ? (
-      <>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-sm font-medium hover:bg-accent/50"
-        >
-          Log in
-        </Button>
-        <Button
-          size="sm"
-          className="text-sm font-medium px-4 h-9 rounded-md shadow-sm transition-colors hover:bg-primary/90"
-        >
-          Sign up
-        </Button>
-      </>
-    ) : (
-      <>
-        <Button variant="ghost" size="sm" className="p-2 hover:bg-accent/50">
-          <User className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-sm font-medium hover:bg-accent/50"
-        >
-          Profile
-        </Button>
-      </>
-    )}
-  </div>
-);
-
 export function Navbar({ isLoggedIn = false }: NavbarProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const router = useRouter();
   const containerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -127,6 +94,18 @@ export function Navbar({ isLoggedIn = false }: NavbarProps) {
     window.addEventListener("resize", checkWidth);
     return () => window.removeEventListener("resize", checkWidth);
   }, []);
+
+  async function handleLogout() {
+    try {
+      const result = await logoutAction();
+      if (result.success) {
+        router.refresh();
+        router.push("/");
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  }
 
   return (
     <header
@@ -176,7 +155,54 @@ export function Navbar({ isLoggedIn = false }: NavbarProps) {
         </div>
 
         {/* Right side - Auth/User Menu */}
-        <AuthButtons isLoggedIn={isLoggedIn} />
+        <div className="flex items-center gap-3">
+          {!isLoggedIn ? (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-sm font-medium hover:bg-accent/50"
+                onClick={() => router.push("/login")}
+              >
+                Log in
+              </Button>
+              <Button
+                size="sm"
+                className="text-sm font-medium px-4 h-9 rounded-md shadow-sm transition-colors hover:bg-primary/90"
+                onClick={() => router.push("/signup")}
+              >
+                Sign up
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-2 hover:bg-accent/50"
+              >
+                <User className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-sm font-medium hover:bg-accent/50"
+                onClick={() => router.push("/profile")}
+              >
+                Profile
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-sm font-medium hover:bg-accent/50"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4 mr-1" />
+                Log out
+              </Button>
+            </>
+          )}
+        </div>
       </div>
     </header>
   );
