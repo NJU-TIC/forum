@@ -197,17 +197,14 @@ export async function findAllPostsWithAuthors(): Promise<QPost[]> {
   // Combine posts with author data
   return posts
     .map((qpost) => {
-      console.log("Post:", qpost);
       const post = {
         ...qpost,
         _id: qpost._id.toString(),
       };
       const validatedPost = validateQueriedPostSafe(post);
-      console.log("Validated post", validatedPost);
       if (!validatedPost) return null;
 
       const author = authorMap.get(validatedPost.author);
-      console.log(`Post ${validatePost} author ${author}`);
       if (!author) return null;
 
       return {

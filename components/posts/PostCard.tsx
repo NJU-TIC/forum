@@ -7,6 +7,10 @@ import { incrementPostLikes, incrementPostForwards } from "@/app/actions/post";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, MessageCircle, Share2 } from "lucide-react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { dark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface PostCardProps {
   post: QPost & {
@@ -15,17 +19,22 @@ interface PostCardProps {
   };
 }
 
+/**
+ * A card displaying a post, with like, forward and comment buttons
+ * @param post: The post to display
+ * @returns
+ */
 export function PostCard({ post }: PostCardProps) {
   const router = useRouter();
   const [likes, setLikes] = useState(post.interactions.likes);
   const [forwards, setForwards] = useState(post.interactions.forwards);
-  const [isLiking, setIsLiking] = useState(false);
-  const [isForwarding, setIsForwarding] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [forwarded, setIsForwarding] = useState(false);
 
   const handleLike = async () => {
-    if (isLiking) return;
+    if (liked) return;
 
-    setIsLiking(true);
+    setLiked(true);
     try {
       const result = await incrementPostLikes(post._id);
       if (result.success) {
@@ -34,12 +43,12 @@ export function PostCard({ post }: PostCardProps) {
     } catch (error) {
       console.error("Error liking post:", error);
     } finally {
-      setIsLiking(false);
+      setLiked(false);
     }
   };
 
   const handleForward = async () => {
-    if (isForwarding) return;
+    if (forwarded) return;
 
     setIsForwarding(true);
     try {
@@ -80,26 +89,88 @@ export function PostCard({ post }: PostCardProps) {
           </div>
         </div>
 
-        <div className="text-gray-700">{post.body.content}</div>
+        <Markdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            h1: ({ children }) => (
+              <h1 className="scroll-m-20 text-4xl font-bold tracking-tight">
+                {children}
+              </h1>
+            ),
+
+            h2: ({ children }) => (
+              <h2 className="scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight">
+                {children}
+              </h2>
+            ),
+
+            p: ({ children }) => (
+              <p className="leading-7 [&:not(:first-child)]:mt-6">{children}</p>
+            ),
+
+            ul: ({ children }) => (
+              <ul className="my-6 ml-6 list-disc">{children}</ul>
+            ),
+
+            code(props) {
+              const { children, className, node, ...rest } = props;
+              const match = /language-(\w+)/.exec(className || "");
+              return match ? (
+                <SyntaxHighlighter
+                  {...rest}
+                  PreTag="div"
+                  language={match[1]}
+                  style={dark}
+                >
+                  {String(children).replace(/\n$/, "")}
+                </SyntaxHighlighter>
+              ) : (
+                <code {...rest} className={className}>
+                  {children}
+                </code>
+              );
+            },
+
+            blockquote: ({ children }) => (
+              <blockquote className="mt-6 border-l-2 pl-6 italic">
+                {children}
+              </blockquote>
+            ),
+
+            table: ({ children }) => (
+              <div className="my-6 w-full overflow-x-auto">
+                <table className="w-full text-sm">{children}</table>
+              </div>
+            ),
+
+            th: ({ children }) => (
+              <th className="border px-3 py-2 font-semibold">{children}</th>
+            ),
+
+            td: ({ children }) => (
+              <td className="border px-3 py-2">{children}</td>
+            ),
+          }}
+        >
+          {post.body.content}
+        </Markdown>
 
         <div className="flex items-center space-x-6 text-sm text-gray-500">
           <button
             onClick={handleLike}
-            disabled={isLiking}
+            disabled={liked}
             className="flex items-center space-x-1 hover:text-red-500 transition-colors disabled:opacity-50"
           >
-            <Heart className={`h-4 w-4 ${isLiking ? "animate-pulse" : ""}`} />
+            <Heart className={`h-4 w-4 ${liked ? "animate-pulse" : ""}`} />
             <span>{likes} likes</span>
           </button>
 
           <button
             onClick={handleForward}
-            disabled={isForwarding}
+            disabled={forwarded}
             className="flex items-center space-x-1 hover:text-blue-500 transition-colors disabled:opacity-50"
           >
-            <Share2
-              className={`h-4 w-4 ${isForwarding ? "animate-pulse" : ""}`}
-            />
+            <Share2 className={`h-4 w-4 ${forwarded ? "animate-pulse" : ""}`} />
             <span>{forwards} forwards</span>
           </button>
 
