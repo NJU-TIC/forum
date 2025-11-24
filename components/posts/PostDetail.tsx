@@ -16,16 +16,16 @@ interface PostDetailProps {
     author: QUser;
     createdAt: Date;
     interactions: {
-      likes: number;
-      forwards: number;
+      likes: QUser[];
+      forwards: QUser[];
       comments: PostComment[];
     };
   };
 }
 
 export function PostDetail({ post }: PostDetailProps) {
-  const [likes, setLikes] = useState(post.interactions.likes);
-  const [forwards, setForwards] = useState(post.interactions.forwards);
+  const [likes, setLikes] = useState(post.interactions.likes.length);
+  const [forwards, setForwards] = useState(post.interactions.forwards.length);
   const [comments, setComments] = useState<PostComment[]>(
     post.interactions.comments,
   );

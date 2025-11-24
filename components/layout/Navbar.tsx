@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
   NavigationMenu,
@@ -16,11 +17,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { User, Menu, Search, FileText, LogOut } from "lucide-react";
-import { logoutAction } from "@/app/actions/auth";
-
-interface NavbarProps {
-  isLoggedIn?: boolean;
-}
 
 // Reusable navigation link component
 const NavLink = ({
@@ -90,10 +86,12 @@ const NavigationContent = ({ isMobile = false }: { isMobile?: boolean }) => (
   </NavigationMenuList>
 );
 
-export function Navbar({ isLoggedIn = false }: NavbarProps) {
+export function Navbar() {
   const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
   const containerRef = useRef<HTMLElement>(null);
+  const { data: session, status } = useSession();
+  const isLoggedIn = status === "authenticated" && !!session?.user;
 
   useEffect(() => {
     const checkWidth = () => {
@@ -110,11 +108,9 @@ export function Navbar({ isLoggedIn = false }: NavbarProps) {
 
   async function handleLogout() {
     try {
-      const result = await logoutAction();
-      if (result.success) {
-        router.refresh();
-        router.push("/");
-      }
+      await signOut({ redirect: false });
+      router.refresh();
+      router.push("/");
     } catch (error) {
       console.error("Logout error:", error);
     }

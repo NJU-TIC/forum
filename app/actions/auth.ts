@@ -1,12 +1,14 @@
 "use server";
 
-import bcrypt from "bcrypt";
-import { cookies } from "next/headers";
+import { signIn, signOut } from "@/auth";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth/options";
 import {
   createUser,
   findUserByName,
   findUserById,
   findAllUsers,
+  generateCredentials,
 } from "@/lib/db";
 
 // Use database functions instead of in-memory storage
@@ -17,28 +19,21 @@ export async function signupAction(formData: FormData) {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    // Basic validation
     if (!name || !email || !password) {
       return { error: "Username, email, and password are required" };
     }
-    const idFromEmail = email.split("@")[0]; // Use part before @ as user ID
 
-    // Check if user already exists
-    const existingUser = await findUserByName(idFromEmail);
+    const existingUser = await findUserByName(name);
     if (existingUser) {
-      // NOTE: The id generation isn't perfect
       return { error: "User already exists" };
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+    const credentials = await generateCredentials(password);
 
-    // Create new user in database
     const userData = {
       name,
       email,
-      credentials: { salt, hash: passwordHash },
+      credentials,
       isAdmin: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -46,25 +41,18 @@ export async function signupAction(formData: FormData) {
 
     const newUser = await createUser(userData);
 
-    // Set session cookie
-    const cookieStore = await cookies();
-    cookieStore.set(
-      "session",
-      JSON.stringify({ userId: newUser._id, email: newUser.id }),
-      {
-        httpOnly: true,
-        secure: true,
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      },
-    );
+    await signIn("credentials", {
+      username: name,
+      password,
+      redirect: false,
+    });
 
     return {
       success: true,
       user: {
         id: newUser._id,
         name: newUser.name,
-        email: newUser.id,
+        email: newUser.email,
         createdAt: newUser.createdAt,
       },
     };
@@ -79,47 +67,27 @@ export async function loginAction(formData: FormData) {
     const username = formData.get("username") as string;
     const password = formData.get("password") as string;
 
-    // Basic validation
     if (!username || !password) {
       return { error: "Username and password are required" };
     }
 
-    // Find user by username
-    const user = await findUserByName(username);
-
-    if (!user || !user.credentials) {
-      return { error: "Invalid email or password" };
-    }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(
+    await signIn("credentials", {
+      username: username.trim(),
       password,
-      user.credentials.hash,
-    );
+      redirect: false,
+    });
 
-    if (!isPasswordValid) {
-      return { error: "Invalid email or password" };
+    const user = await findUserByName(username.trim());
+    if (!user) {
+      return { error: "Unable to load user profile after sign-in" };
     }
-
-    // Set session cookie
-    const cookieStore = await cookies();
-    cookieStore.set(
-      "session",
-      JSON.stringify({ userId: user._id, email: user.id }),
-      {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      },
-    );
 
     return {
       success: true,
       user: {
         id: user._id,
         name: user.name,
-        email: user.id,
+        email: user.email,
         createdAt: user.createdAt,
       },
     };
@@ -131,8 +99,7 @@ export async function loginAction(formData: FormData) {
 
 export async function logoutAction() {
   try {
-    const cookieStore = await cookies();
-    cookieStore.delete("session");
+    await signOut({ redirect: false });
     return { success: true };
   } catch (error) {
     console.error("Logout error:", error);
@@ -142,15 +109,14 @@ export async function logoutAction() {
 
 export async function getCurrentUser() {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("session");
+    const session = await getServerSession(authOptions);
+    const userId = (session?.user as { id?: string })?.id;
 
-    if (!sessionCookie) {
+    if (!userId) {
       return null;
     }
 
-    const session = JSON.parse(sessionCookie.value);
-    const user = await findUserById(session.userId);
+    const user = await findUserById(userId);
 
     if (!user) {
       return null;
@@ -159,7 +125,7 @@ export async function getCurrentUser() {
     return {
       id: user._id,
       name: user.name,
-      email: user.id,
+      email: user.email,
       createdAt: user.createdAt,
     };
   } catch (error) {
@@ -174,7 +140,7 @@ export async function getUsers() {
   return allUsers.map((user) => ({
     id: user._id,
     name: user.name,
-    email: user.id,
+    email: user.email,
     createdAt: user.createdAt,
   }));
 }

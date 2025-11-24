@@ -6,9 +6,127 @@ import {
   validateQueriedPostSafe,
 } from "../validation/post";
 import bcrypt from "bcrypt";
-import { ObjectId, UpdateFilter } from "mongodb";
+import { Document, ObjectId, UpdateFilter } from "mongodb";
 import { QUser, User } from "@/schema/user";
 import { Post, QPost } from "@/schema/post";
+
+type AuthorMap = Map<string, QUser>;
+type InteractionPath = "interactions.likes" | "interactions.forwards";
+
+async function fetchAuthorsByIds(authorIds: string[]): Promise<AuthorMap> {
+  if (authorIds.length === 0) {
+    return new Map();
+  }
+
+  const usersCollection = await getCollection<QUser>("users");
+  const objectIds = authorIds.map((id) => new ObjectId(id));
+  const authors = await usersCollection
+    .find({ _id: { $in: objectIds } })
+    .toArray();
+
+  return authors.reduce<AuthorMap>((map, author) => {
+    const validatedUser = validateUserSafe(author);
+    if (validatedUser) {
+      map.set(author._id.toString(), {
+        ...validatedUser,
+        _id: author._id.toString(),
+      } as QUser);
+    }
+    return map;
+  }, new Map());
+}
+
+async function fetchAuthorById(authorId: string): Promise<QUser | null> {
+  const usersCollection = await getCollection<QUser>("users");
+  const author = await usersCollection.findOne({ _id: new ObjectId(authorId) });
+
+  if (!author) return null;
+
+  const validatedUser = validateUserSafe(author);
+  if (!validatedUser) return null;
+
+  return {
+    ...validatedUser,
+    _id: author._id.toString(),
+  } as QUser;
+}
+
+async function attachAuthorsToPosts(
+  posts: QPost[],
+): Promise<(QPost & { author: QUser })[]> {
+  const authorIds = [...new Set(posts.map((post) => post.author))];
+  const authorMap = await fetchAuthorsByIds(authorIds);
+
+  const populated = await Promise.all(
+    posts.map(async (post) => {
+      let author = authorMap.get(post.author);
+
+      if (!author) {
+        author = await fetchAuthorById(post.author);
+        if (author) {
+          authorMap.set(post.author, author);
+        }
+      }
+
+      if (!author) return null;
+
+      return {
+        ...post,
+        author,
+      };
+    }),
+  );
+
+  return populated.filter(
+    (post): post is QPost & { author: QUser } => post !== null,
+  );
+}
+
+async function loadInteractionUser(userId: string): Promise<User | null> {
+  const usersCollection = await getCollection("users");
+  const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
+
+  if (!user) return null;
+
+  const validatedUser = validateUserSafe(user);
+  return validatedUser ?? null;
+}
+
+async function addUserToInteraction(
+  postId: string,
+  userId: string,
+  interactionPath: InteractionPath,
+): Promise<QPost | null> {
+  const postsCollection = await getCollection("posts");
+  const interactionUser = await loadInteractionUser(userId);
+
+  if (!interactionUser) {
+    return null;
+  }
+
+  const update: UpdateFilter<Document> = {
+    $addToSet: {
+      [interactionPath]: interactionUser,
+    },
+    $set: { updatedAt: new Date() },
+  };
+
+  const result = await postsCollection.findOneAndUpdate(
+    { _id: new ObjectId(postId) },
+    update,
+    { returnDocument: "after" },
+  );
+
+  if (!result) return null;
+
+  const validatedPost = validateQueriedPostSafe(result);
+  if (!validatedPost) return null;
+
+  return {
+    ...validatedPost,
+    _id: result._id.toString(),
+  };
+}
 
 // User operations
 export async function createUser(userData: unknown) {
@@ -168,52 +286,25 @@ export async function findAllPosts(): Promise<QPost[]> {
     .filter((post) => post !== null);
 }
 
-export async function findAllPostsWithAuthors(): Promise<QPost[]> {
+export async function findAllPostsWithAuthors(): Promise<
+  (QPost & { author: QUser })[]
+> {
   const postsCollection = await getCollection("posts");
-  const usersCollection = await getCollection("users");
-
   const posts = await postsCollection.find({}).toArray();
 
-  // Get all unique author IDs
-  const authorIds = [...new Set(posts.map((post) => post.author))];
-
-  // Fetch all authors in one query
-  const authors = await usersCollection
-    .find({ _id: { $in: authorIds.map((id) => new ObjectId(id)) } })
-    .toArray();
-
-  // Create author lookup map
-  const authorMap = new Map();
-  authors.forEach((author) => {
-    const validatedUser = validateUserSafe(author);
-    if (validatedUser) {
-      authorMap.set(author._id.toString(), {
-        ...validatedUser,
-        _id: author._id.toString(),
-      });
-    }
-  });
-
-  // Combine posts with author data
-  return posts
-    .map((qpost) => {
-      const post = {
-        ...qpost,
-        _id: qpost._id.toString(),
+  const sanitizedPosts = posts
+    .map((rawPost) => {
+      const normalizedPost = {
+        ...rawPost,
+        _id: rawPost._id.toString(),
       };
-      const validatedPost = validateQueriedPostSafe(post);
+      const validatedPost = validateQueriedPostSafe(normalizedPost);
       if (!validatedPost) return null;
-
-      const author = authorMap.get(validatedPost.author);
-      if (!author) return null;
-
-      return {
-        ...validatedPost,
-        _id: post._id.toString(),
-        author,
-      };
+      return validatedPost;
     })
-    .filter((post) => post !== null);
+    .filter((post): post is QPost => post !== null);
+
+  return attachAuthorsToPosts(sanitizedPosts);
 }
 
 export async function findPostsByAuthor(authorId: string): Promise<QPost[]> {
@@ -274,50 +365,18 @@ export async function deletePostById(id: string): Promise<boolean> {
   return result.deletedCount > 0;
 }
 
-export async function incrementPostLikes(id: string): Promise<QPost | null> {
-  const postsCollection = await getCollection("posts");
-
-  const result = await postsCollection.findOneAndUpdate(
-    { _id: new ObjectId(id) },
-    {
-      $inc: { "interactions.likes": 1 },
-      $set: { updatedAt: new Date() },
-    },
-    { returnDocument: "after" },
-  );
-
-  if (!result) return null;
-
-  const validatedPost = validateQueriedPostSafe(result);
-  if (!validatedPost) return null;
-
-  return {
-    ...validatedPost,
-    _id: result._id.toString(),
-  };
+export async function incrementPostLikes(
+  id: string,
+  userId: string,
+): Promise<QPost | null> {
+  return addUserToInteraction(id, userId, "interactions.likes");
 }
 
-export async function incrementPostForwards(id: string): Promise<QPost | null> {
-  const postsCollection = await getCollection("posts");
-
-  const result = await postsCollection.findOneAndUpdate(
-    { _id: new ObjectId(id) },
-    {
-      $inc: { "interactions.forwards": 1 },
-      $set: { updatedAt: new Date() },
-    },
-    { returnDocument: "after" },
-  );
-
-  if (!result) return null;
-
-  const validatedPost = validateQueriedPostSafe(result);
-  if (!validatedPost) return null;
-
-  return {
-    ...validatedPost,
-    _id: result._id.toString(),
-  };
+export async function incrementPostForwards(
+  id: string,
+  userId: string,
+): Promise<QPost | null> {
+  return addUserToInteraction(id, userId, "interactions.forwards");
 }
 
 export async function addCommentToPost(
@@ -332,14 +391,16 @@ export async function addCommentToPost(
     body: { content: content },
   };
 
+  const update: UpdateFilter<Document> = {
+    $push: {
+      "interactions.comments": comment,
+    },
+    $set: { updatedAt: new Date() },
+  };
+
   const result = await postsCollection.findOneAndUpdate(
     { _id: new ObjectId(postId) },
-    {
-      $push: {
-        "interactions.comments": comment,
-      } as unknown as UpdateFilter<Document>,
-      $set: { updatedAt: new Date() },
-    },
+    update,
     { returnDocument: "after" },
   );
 

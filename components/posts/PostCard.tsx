@@ -26,8 +26,8 @@ interface PostCardProps {
  */
 export function PostCard({ post }: PostCardProps) {
   const router = useRouter();
-  const [likes, setLikes] = useState(post.interactions.likes);
-  const [forwards, setForwards] = useState(post.interactions.forwards);
+  const [likes, setLikes] = useState(post.interactions.likes.length);
+  const [forwards, setForwards] = useState(post.interactions.forwards.length);
   const [liked, setLiked] = useState(false);
   const [forwarded, setIsForwarding] = useState(false);
 

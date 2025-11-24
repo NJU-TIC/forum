@@ -1,11 +1,13 @@
 import { LoginForm } from "@/components/login-form";
-import { loginAction, getCurrentUser } from "@/app/actions/auth";
+import { loginAction } from "@/app/actions/auth";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth/options";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
   // Redirect if already logged in
-  const currentUser = await getCurrentUser();
-  if (currentUser) {
+  const session = await getServerSession(authOptions);
+  if (session?.user) {
     redirect("/");
   }
   async function handleLogin(formData: FormData) {

@@ -1,11 +1,13 @@
 import { SignupForm } from "@/components/signup-form";
-import { signupAction, getCurrentUser } from "@/app/actions/auth";
+import { signupAction } from "@/app/actions/auth";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth/options";
 import { redirect } from "next/navigation";
 
 export default async function SignupPage() {
   // Redirect if already logged in
-  const currentUser = await getCurrentUser();
-  if (currentUser) {
+  const session = await getServerSession(authOptions);
+  if (session?.user) {
     redirect("/");
   }
   async function handleSignup(formData: FormData) {

@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { UserSchema } from "./user";
 
 export const ObjectID = v.string();
 
@@ -15,8 +16,8 @@ export const PostCommentSchema = v.object({
 });
 
 export const PostInteractionSchema = v.object({
-  likes: v.number(),
-  forwards: v.number(),
+  likes: v.array(UserSchema),
+  forwards: v.array(UserSchema),
   comments: v.array(PostCommentSchema),
 });
 

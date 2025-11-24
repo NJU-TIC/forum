@@ -1,28 +1,21 @@
 "use server";
 
-import { cookies } from "next/headers";
 import {
   createPost,
   incrementPostLikes as incrementPostLikesInDb,
   incrementPostForwards as incrementPostForwardsInDb,
   addCommentToPost as addCommentToPostInDb,
 } from "@/lib/db";
+import { requireAuthenticatedUser } from "@/lib/auth/session";
 
 export async function createPostAction(formData: FormData) {
-  // Get current user from session
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
+  const currentUser = await requireAuthenticatedUser().catch(() => null);
 
-  if (!sessionCookie) {
+  if (!currentUser) {
     return { error: "You must be logged in to create a post" };
   }
 
-  const session = JSON.parse(sessionCookie.value);
-  const userId = session.userId;
-
-  if (!userId) {
-    return { error: "You must be logged in to create a post" };
-  }
+  const userId = currentUser.id;
 
   // Get form data
   const title = formData.get("title") as string;
@@ -45,8 +38,8 @@ export async function createPostAction(formData: FormData) {
       content: content.trim(),
     },
     interactions: {
-      likes: 0,
-      forwards: 0,
+      likes: [],
+      forwards: [],
       comments: [],
     },
     createdAt: new Date(),
@@ -63,14 +56,13 @@ export async function createPostAction(formData: FormData) {
 }
 
 export async function incrementPostLikes(postId: string) {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
+  const currentUser = await requireAuthenticatedUser().catch(() => null);
 
-  if (!sessionCookie) {
+  if (!currentUser) {
     return { error: "You must be logged in to like posts" };
   }
 
-  const result = await incrementPostLikesInDb(postId);
+  const result = await incrementPostLikesInDb(postId, currentUser.id);
 
   if (!result) {
     return { error: "Post not found" };
@@ -78,19 +70,18 @@ export async function incrementPostLikes(postId: string) {
 
   return {
     success: true,
-    likes: result.interactions.likes,
+    likes: result.interactions.likes.length,
   };
 }
 
 export async function incrementPostForwards(postId: string) {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
+  const currentUser = await requireAuthenticatedUser().catch(() => null);
 
-  if (!sessionCookie) {
+  if (!currentUser) {
     return { error: "You must be logged in to forward posts" };
   }
 
-  const result = await incrementPostForwardsInDb(postId);
+  const result = await incrementPostForwardsInDb(postId, currentUser.id);
 
   if (!result) {
     return { error: "Post not found" };
@@ -98,22 +89,14 @@ export async function incrementPostForwards(postId: string) {
 
   return {
     success: true,
-    forwards: result.interactions.forwards,
+    forwards: result.interactions.forwards.length,
   };
 }
 
 export async function addCommentAction(postId: string, content: string) {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
+  const currentUser = await requireAuthenticatedUser().catch(() => null);
 
-  if (!sessionCookie) {
-    return { error: "You must be logged in to add comments" };
-  }
-
-  const session = JSON.parse(sessionCookie.value);
-  const userId = session.userId;
-
-  if (!userId) {
+  if (!currentUser) {
     return { error: "You must be logged in to add comments" };
   }
 
@@ -121,7 +104,11 @@ export async function addCommentAction(postId: string, content: string) {
     return { error: "Comment content is required" };
   }
 
-  const result = await addCommentToPostInDb(postId, userId, content.trim());
+  const result = await addCommentToPostInDb(
+    postId,
+    currentUser.id,
+    content.trim(),
+  );
 
   if (!result) {
     return { error: "Post not found" };

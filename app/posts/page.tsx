@@ -1,13 +1,47 @@
 import { PostCard } from "@/components/posts/PostCard";
-import { findAllPostsWithAuthors } from "@/lib/db";
+import { findAllPosts, findUserById } from "@/lib/db";
 import Link from "next/link";
 import { cookies } from "next/headers";
+import type { QPost } from "@/schema/post";
+import type { QUser } from "@/schema/user";
 
-async function getPosts() {
+type PopulatedPost = QPost & { author: QUser; createdAt: Date };
+
+async function populatePostsWithAuthors(
+  posts: QPost[],
+): Promise<PopulatedPost[]> {
+  const authorIds = Array.from(new Set(posts.map((post) => post.author)));
+  const authors = await Promise.all(
+    authorIds.map(async (id) => {
+      const author = await findUserById(id);
+      return author ? ([id, author] as const) : null;
+    }),
+  );
+
+  const authorMap = new Map(
+    authors.filter(
+      (entry): entry is readonly [string, QUser] => entry !== null,
+    ),
+  );
+
+  return posts
+    .map((post) => {
+      const author = authorMap.get(post.author);
+      if (!author) return null;
+
+      return {
+        ...post,
+        author,
+        createdAt: new Date(post.createdAt),
+      };
+    })
+    .filter((post): post is PopulatedPost => post !== null);
+}
+
+async function getPosts(): Promise<PopulatedPost[]> {
   try {
-    const posts = await findAllPostsWithAuthors();
-
-    return posts;
+    const posts = await findAllPosts();
+    return await populatePostsWithAuthors(posts);
   } catch (error) {
     console.error("Error fetching posts:", error);
     return [];
