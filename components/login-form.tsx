@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,9 +23,12 @@ export function LoginForm({
   action,
   ...props
 }: React.ComponentProps<typeof Card> & {
-  action: (
-    formData: FormData,
-  ) => Promise<{ success?: boolean; error?: string; user?: unknown }>;
+  action: (formData: FormData) => Promise<{
+    success?: boolean;
+    error?: string;
+    user?: unknown;
+    credentials?: { username: string; password: string };
+  }>;
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -37,6 +41,19 @@ export function LoginForm({
       if (result.error) {
         alert(result.error);
       } else if (result.success) {
+        // If credentials are provided, sign in on the client side
+        if (result.credentials) {
+          const signInResult = await signIn("credentials", {
+            username: result.credentials.username,
+            password: result.credentials.password,
+            redirect: false,
+          });
+
+          if (signInResult?.error) {
+            alert("Sign-in failed. Please try again.");
+            return;
+          }
+        }
         router.push("/");
       }
     } catch (error) {

@@ -1,6 +1,5 @@
 "use server";
 
-import { signIn, signOut } from "@/auth";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth/options";
 import {
@@ -41,11 +40,8 @@ export async function signupAction(formData: FormData) {
 
     const newUser = await createUser(userData);
 
-    await signIn("credentials", {
-      username: name,
-      password,
-      redirect: false,
-    });
+    // After successful user creation, return success
+    // The client will handle the sign-in
 
     return {
       success: true,
@@ -55,6 +51,8 @@ export async function signupAction(formData: FormData) {
         email: newUser.email,
         createdAt: newUser.createdAt,
       },
+      // Signal that the user should be signed in on the client
+      shouldSignIn: true,
     };
   } catch (error) {
     console.error("Signup error:", error);
@@ -71,11 +69,14 @@ export async function loginAction(formData: FormData) {
       return { error: "Username and password are required" };
     }
 
-    await signIn("credentials", {
-      username: username.trim(),
-      password,
-      redirect: false,
-    });
+    // Return credentials for client-side sign-in
+    return {
+      success: true,
+      credentials: {
+        username: username.trim(),
+        password,
+      },
+    };
 
     const user = await findUserByName(username.trim());
     if (!user) {
@@ -84,11 +85,9 @@ export async function loginAction(formData: FormData) {
 
     return {
       success: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        createdAt: user.createdAt,
+      credentials: {
+        username: username.trim(),
+        password,
       },
     };
   } catch (error) {
@@ -99,8 +98,8 @@ export async function loginAction(formData: FormData) {
 
 export async function logoutAction() {
   try {
-    await signOut({ redirect: false });
-    return { success: true };
+    // Return success - client will handle signOut
+    return { success: true, shouldSignOut: true };
   } catch (error) {
     console.error("Logout error:", error);
     return { error: "Failed to log out" };

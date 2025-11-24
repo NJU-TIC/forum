@@ -4,7 +4,6 @@ import bcrypt from "bcrypt";
 import { findUserByName } from "@/lib/db";
 
 export const authOptions: NextAuthOptions = {
-  trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [
@@ -58,8 +57,10 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (session.user && token.id) {
-        session.user.id = token.id as string;
-        session.user.isAdmin = Boolean(token.isAdmin);
+        (session.user as { id?: string }).id = token.id as string;
+        (session.user as { isAdmin?: boolean }).isAdmin = Boolean(
+          token.isAdmin,
+        );
       }
       return session;
     },

@@ -3,8 +3,12 @@ import { authOptions } from "@/lib/auth/options";
 
 type AppSession = Awaited<ReturnType<typeof getServerSession>>;
 
-export type AuthenticatedUser = NonNullable<NonNullable<AppSession>["user"]> & {
+export type AuthenticatedUser = {
   id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  isAdmin?: boolean;
 };
 
 /**
@@ -21,9 +25,9 @@ export async function getServerAuthSession(): Promise<AppSession> {
 export async function requireAuthenticatedUser(): Promise<AuthenticatedUser> {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user?.id) {
+  if (!session?.user || !(session.user as { id?: string }).id) {
     throw new Error("Authentication required");
   }
 
-  return session.user as AuthenticatedUser;
+  return session.user as unknown as AuthenticatedUser;
 }
