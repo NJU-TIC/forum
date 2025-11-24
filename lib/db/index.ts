@@ -276,9 +276,14 @@ export async function findAllPosts(): Promise<QPost[]> {
   const postsCollection = await getCollection("posts");
   const posts = await postsCollection.find({}).toArray();
 
+  console.log("findAllPosts: got", posts);
+
   return posts
     .map((post) => {
+      console.log("Validating", post);
+      console.log("_id type", typeof post._id);
       const validatedPost = validateQueriedPostSafe(post);
+      console.log("Validate result", validatedPost);
       if (!validatedPost) return null;
 
       return {

@@ -33,7 +33,7 @@ export const PostSchema = v.object({
 export const QueriedPostSchema = v.intersect([
   PostSchema,
   v.object({
-    _id: v.string(),
+    _id: v.looseObject({}),
   }),
 ]);
 

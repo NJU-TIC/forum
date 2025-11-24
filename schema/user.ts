@@ -18,7 +18,7 @@ export const UserSchema = v.object({
 export const QueriedUserSchema = v.intersect([
   UserSchema,
   v.object({
-    _id: v.string(),
+    _id: v.looseObject({}),
   }),
 ]);
 
