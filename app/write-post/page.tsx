@@ -27,7 +27,6 @@ export default function WritePostPage() {
       setIsLoading(false);
     } else if (result.success) {
       router.push("/");
-      router.refresh();
     }
   };
 

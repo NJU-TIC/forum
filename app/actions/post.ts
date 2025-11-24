@@ -7,6 +7,7 @@ import {
   addCommentToPost as addCommentToPostInDb,
 } from "@/lib/db";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
+import { createValidatedPost } from "@/lib/validation/post";
 
 export async function createPostAction(formData: FormData) {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
@@ -30,29 +31,25 @@ export async function createPostAction(formData: FormData) {
     return { error: "Title and content cannot be empty" };
   }
 
-  // Create post data matching the schema
-  const postData = {
+  // Create post data using the validation helper
+  const postData = createValidatedPost({
     author: userId,
     title: title.trim(),
-    body: {
-      content: content.trim(),
-    },
-    interactions: {
-      likes: [],
-      forwards: [],
-      comments: [],
-    },
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+    content: content.trim(),
+  });
 
   // Save to database
-  const newPost = await createPost(postData);
+  try {
+    const newPost = await createPost(postData);
 
-  return {
-    success: true,
-    post: newPost,
-  };
+    return {
+      success: true,
+      post: newPost,
+    };
+  } catch (error) {
+    console.error("Error creating post:", error);
+    return { error: "Failed to create post. Please try again." };
+  }
 }
 
 export async function incrementPostLikes(postId: string) {

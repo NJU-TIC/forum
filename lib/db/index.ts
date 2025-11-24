@@ -244,7 +244,10 @@ export async function generateCredentials(password: string) {
 
 // Post operations
 export async function createPost(postData: unknown) {
-  const validatedPost: Post = validatePost(postData);
+  const validatedPost = validatePostSafe(postData);
+  if (!validatedPost) {
+    throw new Error("Invalid post data");
+  }
   const postsCollection = await getCollection("posts");
   const result = await postsCollection.insertOne(validatedPost);
 

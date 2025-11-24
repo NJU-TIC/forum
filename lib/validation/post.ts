@@ -47,22 +47,18 @@ export function createValidatedPost(data: {
   comments?: Array<{ author: string; content: string }>;
 }) {
   const postData = {
-    _id: `post-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     author: data.author,
     title: data.title,
     body: {
       content: data.content,
     },
     interactions: {
-      likes: data.likes || 0,
-      forwards: data.forwards || 0,
-      comments: (data.comments || []).map((comment) => ({
-        author: comment.author,
-        body: {
-          content: comment.content,
-        },
-      })),
+      likes: [],
+      forwards: [],
+      comments: [],
     },
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 
   return validatePost(postData);
