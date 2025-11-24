@@ -35,33 +35,27 @@ export function LoginForm({
 
   async function handleAction(formData: FormData) {
     setIsLoading(true);
-    try {
-      const result = await action(formData);
+    const result = await action(formData);
 
-      if (result.error) {
-        alert(result.error);
-      } else if (result.success) {
-        // If credentials are provided, sign in on the client side
-        if (result.credentials) {
-          const signInResult = await signIn("credentials", {
-            username: result.credentials.username,
-            password: result.credentials.password,
-            redirect: false,
-          });
+    if (result.error) {
+      alert(result.error);
+    } else if (result.success) {
+      // If credentials are provided, sign in on the client side
+      if (result.credentials) {
+        const signInResult = await signIn("credentials", {
+          username: result.credentials.username,
+          password: result.credentials.password,
+          redirect: false,
+        });
 
-          if (signInResult?.error) {
-            alert("Sign-in failed. Please try again.");
-            return;
-          }
+        if (signInResult?.error) {
+          alert("Sign-in failed. Please try again.");
+          return;
         }
-        router.push("/");
       }
-    } catch (error) {
-      console.error("Login error:", error);
-      alert("Invalid email or password. Please try again.");
-    } finally {
-      setIsLoading(false);
+      router.push("/");
     }
+    setIsLoading(false);
   }
 
   return (

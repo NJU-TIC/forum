@@ -7,25 +7,20 @@ interface PostPageProps {
 }
 
 async function getPostWithAuthor(id: string) {
-  try {
-    const post = await findPostById(id);
-    if (!post) return null;
+  const post = await findPostById(id);
+  if (!post) return null;
 
-    // Get author information
-    const users = await findAllPostsWithAuthors();
-    const postWithAuthor = users.find((p) => p._id === id);
+  // Get author information
+  const users = await findAllPostsWithAuthors();
+  const postWithAuthor = users.find((p) => p._id === id);
 
-    if (!postWithAuthor) return null;
+  if (!postWithAuthor) return null;
 
-    return {
-      ...post,
-      author: postWithAuthor.author,
-      createdAt: new Date(post.createdAt),
-    };
-  } catch (error) {
-    console.error("Error fetching post:", error);
-    return null;
-  }
+  return {
+    ...post,
+    author: postWithAuthor.author,
+    createdAt: new Date(post.createdAt),
+  };
 }
 
 export default async function PostPage({ params }: PostPageProps) {

@@ -35,32 +35,22 @@ export function PostCard({ post }: PostCardProps) {
     if (liked) return;
 
     setLiked(true);
-    try {
-      const result = await incrementPostLikes(post._id);
-      if (result.success) {
-        setLikes(result.likes);
-      }
-    } catch (error) {
-      console.error("Error liking post:", error);
-    } finally {
-      setLiked(false);
+    const result = await incrementPostLikes(post._id);
+    if (result.success) {
+      setLikes(result.likes);
     }
+    setLiked(false);
   };
 
   const handleForward = async () => {
     if (forwarded) return;
 
     setIsForwarding(true);
-    try {
-      const result = await incrementPostForwards(post._id);
-      if (result.success) {
-        setForwards(result.forwards);
-      }
-    } catch (error) {
-      console.error("Error forwarding post:", error);
-    } finally {
-      setIsForwarding(false);
+    const result = await incrementPostForwards(post._id);
+    if (result.success) {
+      setForwards(result.forwards);
     }
+    setIsForwarding(false);
   };
 
   const handleComment = () => {

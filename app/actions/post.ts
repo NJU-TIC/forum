@@ -39,17 +39,13 @@ export async function createPostAction(formData: FormData) {
   });
 
   // Save to database
-  try {
-    const newPost = await createPost(postData);
 
-    return {
-      success: true,
-      post: newPost,
-    };
-  } catch (error) {
-    console.error("Error creating post:", error);
-    return { error: "Failed to create post. Please try again." };
-  }
+  const newPost = await createPost(postData);
+
+  return {
+    success: true,
+    post: newPost,
+  };
 }
 
 export async function incrementPostLikes(postId: string) {

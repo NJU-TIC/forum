@@ -38,32 +38,22 @@ export function PostDetail({ post }: PostDetailProps) {
     if (isLiking) return;
 
     setIsLiking(true);
-    try {
-      const result = await incrementPostLikes(post._id);
-      if (result.success) {
-        setLikes(result.likes);
-      }
-    } catch (error) {
-      console.error("Error liking post:", error);
-    } finally {
-      setIsLiking(false);
+    const result = await incrementPostLikes(post._id);
+    if (result.success) {
+      setLikes(result.likes);
     }
+    setIsLiking(false);
   };
 
   const handleForward = async () => {
     if (isForwarding) return;
 
     setIsForwarding(true);
-    try {
-      const result = await incrementPostForwards(post._id);
-      if (result.success) {
-        setForwards(result.forwards);
-      }
-    } catch (error) {
-      console.error("Error forwarding post:", error);
-    } finally {
-      setIsForwarding(false);
+    const result = await incrementPostForwards(post._id);
+    if (result.success) {
+      setForwards(result.forwards);
     }
+    setIsForwarding(false);
   };
 
   const handleAddComment = async (e: React.FormEvent) => {
@@ -71,17 +61,12 @@ export function PostDetail({ post }: PostDetailProps) {
     if (!newComment.trim() || isAddingComment) return;
 
     setIsAddingComment(true);
-    try {
-      const result = await addCommentAction(post._id, newComment.trim());
-      if (result.success) {
-        setComments(result.comments as PostComment[]);
-        setNewComment("");
-      }
-    } catch (error) {
-      console.error("Error adding comment:", error);
-    } finally {
-      setIsAddingComment(false);
+    const result = await addCommentAction(post._id, newComment.trim());
+    if (result.success) {
+      setComments(result.comments as PostComment[]);
+      setNewComment("");
     }
+    setIsAddingComment(false);
   };
 
   return (

@@ -33,7 +33,7 @@ export async function connectToMongoDB(): Promise<{
 
   const client = new MongoClient(MONGODB_URI!);
   await client.connect();
-  const db = client.db();
+  const db = client.db("forum");
 
   cached.client = client;
   cached.db = db;

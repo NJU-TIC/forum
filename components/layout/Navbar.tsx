@@ -107,13 +107,9 @@ export function Navbar() {
   }, []);
 
   async function handleLogout() {
-    try {
-      await signOut({ redirect: false });
-      router.refresh();
-      router.push("/");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
+    await signOut({ redirect: false });
+    router.refresh();
+    router.push("/");
   }
 
   return (

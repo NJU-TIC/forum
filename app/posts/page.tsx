@@ -39,13 +39,8 @@ async function populatePostsWithAuthors(
 }
 
 async function getPosts(): Promise<PopulatedPost[]> {
-  try {
-    const posts = await findAllPosts();
-    return await populatePostsWithAuthors(posts);
-  } catch (error) {
-    console.error("Error fetching posts:", error);
-    return [];
-  }
+  const posts = await findAllPosts();
+  return await populatePostsWithAuthors(posts);
 }
 
 export default async function HomePage() {

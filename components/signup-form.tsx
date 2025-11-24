@@ -23,9 +23,7 @@ export function SignupForm({
   action,
   ...props
 }: React.ComponentProps<typeof Card> & {
-  action: (
-    formData: FormData,
-  ) => Promise<{
+  action: (formData: FormData) => Promise<{
     success?: boolean;
     error?: string;
     user?: unknown;
@@ -37,34 +35,28 @@ export function SignupForm({
 
   async function handleAction(formData: FormData) {
     setIsLoading(true);
-    try {
-      const result = await action(formData);
+    const result = await action(formData);
 
-      if (result.error) {
-        alert(result.error);
-      } else if (result.success) {
-        // If shouldSignIn is true, sign in the user on the client side
-        if (result.shouldSignIn) {
-          const signInResult = await signIn("credentials", {
-            username: formData.get("username") as string,
-            password: formData.get("password") as string,
-            redirect: false,
-          });
+    if (result.error) {
+      alert(result.error);
+    } else if (result.success) {
+      // If shouldSignIn is true, sign in the user on the client side
+      if (result.shouldSignIn) {
+        const signInResult = await signIn("credentials", {
+          username: formData.get("username") as string,
+          password: formData.get("password") as string,
+          redirect: false,
+        });
 
-          if (signInResult?.error) {
-            alert(
-              "Account created but sign-in failed. Please try signing in manually.",
-            );
-          }
+        if (signInResult?.error) {
+          alert(
+            "Account created but sign-in failed. Please try signing in manually.",
+          );
         }
-        router.push("/");
       }
-    } catch (error) {
-      console.error("Signup error:", error);
-      alert("Failed to create account. Please try again.");
-    } finally {
-      setIsLoading(false);
+      router.push("/");
     }
+    setIsLoading(false);
   }
 
   return (
