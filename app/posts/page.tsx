@@ -40,13 +40,12 @@ async function populatePostsWithAuthors(
 
 async function getPosts(): Promise<PopulatedPost[]> {
   const posts = await findAllPosts();
-  console.log("getPosts got posts", posts);
+
   return await populatePostsWithAuthors(posts);
 }
 
 export default async function HomePage() {
   const posts = await getPosts();
-  console.log("HomePage got posts", posts);
 
   // Check if user is logged in
   const cookieStore = await cookies();

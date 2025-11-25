@@ -58,11 +58,17 @@ export function PostCard({ post }: PostCardProps) {
   };
 
   return (
-    <Card className="p-6 mb-4">
+    <Card
+      className="p-6 mb-4 cursor-pointer hover:shadow-lg transition-shadow"
+      onClick={() => router.push(`/posts/${post._id}`)}
+    >
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3
+              className="text-lg font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+              onClick={() => router.push(`/posts/${post._id}`)}
+            >
               {post.title}
             </h3>
             <p className="text-sm text-gray-500">
@@ -147,7 +153,10 @@ export function PostCard({ post }: PostCardProps) {
 
         <div className="flex items-center space-x-6 text-sm text-gray-500">
           <button
-            onClick={handleLike}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleLike();
+            }}
             disabled={liked}
             className="flex items-center space-x-1 hover:text-red-500 transition-colors disabled:opacity-50"
           >
@@ -156,7 +165,10 @@ export function PostCard({ post }: PostCardProps) {
           </button>
 
           <button
-            onClick={handleForward}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleForward();
+            }}
             disabled={forwarded}
             className="flex items-center space-x-1 hover:text-blue-500 transition-colors disabled:opacity-50"
           >
@@ -165,7 +177,10 @@ export function PostCard({ post }: PostCardProps) {
           </button>
 
           <button
-            onClick={handleComment}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleComment();
+            }}
             className="flex items-center space-x-1 hover:text-green-500 transition-colors"
           >
             <MessageCircle className="h-4 w-4" />

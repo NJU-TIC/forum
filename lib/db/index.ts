@@ -36,7 +36,7 @@ async function fetchAuthorsByIds(authorIds: string[]): Promise<AuthorMap> {
   }, new Map());
 }
 
-async function fetchAuthorById(authorId: string): Promise<QUser | null> {
+export async function fetchAuthorById(authorId: string): Promise<QUser | null> {
   const usersCollection = await getCollection<QUser>("users");
   const author = await usersCollection.findOne({ _id: new ObjectId(authorId) });
 
@@ -54,11 +54,22 @@ async function fetchAuthorById(authorId: string): Promise<QUser | null> {
 async function attachAuthorsToPosts(
   posts: QPost[],
 ): Promise<(QPost & { author: QUser })[]> {
-  const authorIds = [...new Set(posts.map((post) => post.author))];
+  if (!posts || posts.length === 0) {
+    return [];
+  }
+
+  const authorIds = [
+    ...new Set(posts.map((post) => post.author).filter(Boolean)),
+  ];
   const authorMap = await fetchAuthorsByIds(authorIds);
 
   const populated = await Promise.all(
     posts.map(async (post) => {
+      if (!post.author) {
+        console.warn(`Post ${post._id} has no author field`);
+        return null;
+      }
+
       let author = authorMap.get(post.author);
 
       if (!author) {
@@ -68,7 +79,12 @@ async function attachAuthorsToPosts(
         }
       }
 
-      if (!author) return null;
+      if (!author) {
+        console.warn(
+          `Author not found for post ${post._id}, author ID: ${post.author}`,
+        );
+        return null;
+      }
 
       return {
         ...post,
@@ -77,19 +93,29 @@ async function attachAuthorsToPosts(
     }),
   );
 
-  return populated.filter(
+  const validPosts = populated.filter(
     (post): post is QPost & { author: QUser } => post !== null,
   );
+
+  console.log(
+    `Successfully attached authors to ${validPosts.length} out of ${posts.length} posts`,
+  );
+  return validPosts;
 }
 
-async function loadInteractionUser(userId: string): Promise<User | null> {
+async function loadInteractionUser(userId: string): Promise<QUser | null> {
   const usersCollection = await getCollection("users");
   const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
 
   if (!user) return null;
 
   const validatedUser = validateUserSafe(user);
-  return validatedUser ?? null;
+  if (!validatedUser) return null;
+
+  return {
+    ...validatedUser,
+    _id: user._id.toString(),
+  } as QUser;
 }
 
 async function addUserToInteraction(
@@ -276,14 +302,10 @@ export async function findAllPosts(): Promise<QPost[]> {
   const postsCollection = await getCollection("posts");
   const posts = await postsCollection.find({}).toArray();
 
-  console.log("findAllPosts: got", posts);
-
   return posts
     .map((post) => {
-      console.log("Validating", post);
-      console.log("_id type", typeof post._id);
       const validatedPost = validateQueriedPostSafe(post);
-      console.log("Validate result", validatedPost);
+
       if (!validatedPost) return null;
 
       return {
@@ -297,22 +319,38 @@ export async function findAllPosts(): Promise<QPost[]> {
 export async function findAllPostsWithAuthors(): Promise<
   (QPost & { author: QUser })[]
 > {
+  console.log("=== Starting findAllPostsWithAuthors ===");
   const postsCollection = await getCollection("posts");
   const posts = await postsCollection.find({}).toArray();
+  console.log(`Found ${posts.length} raw posts from database`);
 
   const sanitizedPosts = posts
     .map((rawPost) => {
+      console.log("Processing raw post:", {
+        _id: rawPost._id.toString(),
+        author: rawPost.author,
+        hasTitle: !!rawPost.title,
+        hasBody: !!rawPost.body,
+      });
+
       const normalizedPost = {
         ...rawPost,
         _id: rawPost._id.toString(),
+        author: rawPost.author.toString(),
       };
       const validatedPost = validateQueriedPostSafe(normalizedPost);
-      if (!validatedPost) return null;
+      if (!validatedPost) {
+        console.log("Validation failed for post:", rawPost._id.toString());
+        return null;
+      }
       return validatedPost;
     })
     .filter((post): post is QPost => post !== null);
 
-  return attachAuthorsToPosts(sanitizedPosts);
+  console.log(`Validated ${sanitizedPosts.length} posts, attaching authors...`);
+  const result = await attachAuthorsToPosts(sanitizedPosts);
+  console.log(`Final result: ${result.length} posts with authors`);
+  return result;
 }
 
 export async function findPostsByAuthor(authorId: string): Promise<QPost[]> {

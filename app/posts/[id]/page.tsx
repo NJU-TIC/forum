@@ -1,5 +1,6 @@
 import { PostDetail } from "@/components/posts/PostDetail";
-import { findPostById, findAllPostsWithAuthors } from "@/lib/db";
+import { PostDetailMinimal } from "@/components/posts/PostDetailMinimal";
+import { findPostById, fetchAuthorById } from "@/lib/db";
 import { notFound } from "next/navigation";
 
 interface PostPageProps {
@@ -8,28 +9,32 @@ interface PostPageProps {
 
 async function getPostWithAuthor(id: string) {
   const post = await findPostById(id);
-  if (!post) return null;
 
-  // Get author information
-  const users = await findAllPostsWithAuthors();
-  const postWithAuthor = users.find((p) => p._id === id);
+  if (!post) {
+    console.log("Post not found by ID:", id);
+    return null;
+  }
 
-  if (!postWithAuthor) return null;
+  const author = await fetchAuthorById(post.author);
 
-  return {
+  if (!author) {
+    console.log("Author not found for post:", post.author);
+    return null;
+  }
+
+  // Combine post with author
+  const postWithAuthor = {
     ...post,
-    author: postWithAuthor.author,
-    createdAt: new Date(post.createdAt),
+    author,
+    createdAt: post.createdAt,
   };
+
+  return postWithAuthor;
 }
 
 export default async function PostPage({ params }: PostPageProps) {
   const { id } = await params;
   const post = await getPostWithAuthor(id);
-
-  if (!post) {
-    notFound();
-  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">

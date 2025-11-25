@@ -10,6 +10,8 @@ import {
   incrementPostForwards,
   addCommentAction,
 } from "@/app/actions/post";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface PostDetailProps {
   post: QPost & {
@@ -24,10 +26,12 @@ interface PostDetailProps {
 }
 
 export function PostDetail({ post }: PostDetailProps) {
-  const [likes, setLikes] = useState(post.interactions.likes.length);
-  const [forwards, setForwards] = useState(post.interactions.forwards.length);
+  const [likes, setLikes] = useState(post.interactions?.likes?.length || 0);
+  const [forwards, setForwards] = useState(
+    post.interactions?.forwards?.length || 0,
+  );
   const [comments, setComments] = useState<PostComment[]>(
-    post.interactions.comments,
+    post.interactions?.comments || [],
   );
   const [newComment, setNewComment] = useState("");
   const [isLiking, setIsLiking] = useState(false);
@@ -38,7 +42,7 @@ export function PostDetail({ post }: PostDetailProps) {
     if (isLiking) return;
 
     setIsLiking(true);
-    const result = await incrementPostLikes(post._id);
+    const result = await incrementPostLikes(post._id as string);
     if (result.success) {
       setLikes(result.likes);
     }
@@ -49,7 +53,7 @@ export function PostDetail({ post }: PostDetailProps) {
     if (isForwarding) return;
 
     setIsForwarding(true);
-    const result = await incrementPostForwards(post._id);
+    const result = await incrementPostForwards(post._id as string);
     if (result.success) {
       setForwards(result.forwards);
     }
@@ -61,7 +65,10 @@ export function PostDetail({ post }: PostDetailProps) {
     if (!newComment.trim() || isAddingComment) return;
 
     setIsAddingComment(true);
-    const result = await addCommentAction(post._id, newComment.trim());
+    const result = await addCommentAction(
+      post._id as string,
+      newComment.trim(),
+    );
     if (result.success) {
       setComments(result.comments as PostComment[]);
       setNewComment("");
@@ -91,9 +98,73 @@ export function PostDetail({ post }: PostDetailProps) {
             </div>
           </div>
 
-          <div className="text-gray-700 text-lg leading-relaxed">
+          <Markdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h1: ({ children }) => (
+                <h1 className="scroll-m-20 text-4xl font-bold tracking-tight">
+                  {children}
+                </h1>
+              ),
+
+              h2: ({ children }) => (
+                <h2 className="scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight">
+                  {children}
+                </h2>
+              ),
+
+              p: ({ children }) => (
+                <p className="leading-7 [&:not(:first-child)]:mt-6">
+                  {children}
+                </p>
+              ),
+
+              ul: ({ children }) => (
+                <ul className="my-6 ml-6 list-disc">{children}</ul>
+              ),
+
+              code(props) {
+                const { children, className, node, ...rest } = props;
+                const match = /language-(\w+)/.exec(className || "");
+                return match ? (
+                  <SyntaxHighlighter
+                    {...rest}
+                    PreTag="div"
+                    language={match[1]}
+                    style={dark}
+                  >
+                    {String(children).replace(/\n$/, "")}
+                  </SyntaxHighlighter>
+                ) : (
+                  <code {...rest} className={className}>
+                    {children}
+                  </code>
+                );
+              },
+
+              blockquote: ({ children }) => (
+                <blockquote className="mt-6 border-l-2 pl-6 italic">
+                  {children}
+                </blockquote>
+              ),
+
+              table: ({ children }) => (
+                <div className="my-6 w-full overflow-x-auto">
+                  <table className="w-full text-sm">{children}</table>
+                </div>
+              ),
+
+              th: ({ children }) => (
+                <th className="border px-3 py-2 font-semibold">{children}</th>
+              ),
+
+              td: ({ children }) => (
+                <td className="border px-3 py-2">{children}</td>
+              ),
+            }}
+          >
             {post.body.content}
-          </div>
+          </Markdown>
 
           <div className="flex items-center space-x-6 text-sm text-gray-500 pt-4 border-t">
             <button
@@ -102,7 +173,7 @@ export function PostDetail({ post }: PostDetailProps) {
               className="flex items-center space-x-1 hover:text-red-500 transition-colors disabled:opacity-50"
             >
               <Heart className={`h-4 w-4 ${isLiking ? "animate-pulse" : ""}`} />
-              <span>{likes} likes</span>
+              <span>{likes || 0} likes</span>
             </button>
 
             <button
@@ -113,12 +184,12 @@ export function PostDetail({ post }: PostDetailProps) {
               <Share2
                 className={`h-4 w-4 ${isForwarding ? "animate-pulse" : ""}`}
               />
-              <span>{forwards} forwards</span>
+              <span>{forwards || 0} forwards</span>
             </button>
 
             <div className="flex items-center space-x-1">
               <MessageCircle className="h-4 w-4" />
-              <span>{comments.length} comments</span>
+              <span>{comments?.length || 0} comments</span>
             </div>
           </div>
         </div>
