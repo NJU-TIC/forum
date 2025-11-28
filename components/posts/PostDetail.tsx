@@ -94,7 +94,11 @@ export function PostDetail({ post }: PostDetailProps) {
               </p>
             </div>
             <div className="text-sm text-gray-400">
-              {post.createdAt.toLocaleDateString()}
+              {new Date(post.createdAt).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })}
             </div>
           </div>
 
@@ -234,7 +238,13 @@ export function PostDetail({ post }: PostDetailProps) {
                     User {comment.author}
                   </span>
                   <span className="text-xs text-gray-500">
-                    {new Date().toLocaleDateString()}
+                    {comment.createdAt
+                      ? new Date(comment.createdAt).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : ""}
                   </span>
                 </div>
                 <p className="text-gray-700">{comment.body.content}</p>
