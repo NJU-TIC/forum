@@ -1,4 +1,4 @@
-# NJUTIC Form
+# NJUTIC Forum
 
 ## Development
 

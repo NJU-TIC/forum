@@ -1,14 +1,10 @@
 import { getCollection } from "../mongodb";
 import { validateUser, validateUserSafe } from "../validation/user";
-import {
-  validatePost,
-  validatePostSafe,
-  validateQueriedPostSafe,
-} from "../validation/post";
+import { validatePostSafe, validateQueriedPostSafe } from "../validation/post";
 import bcrypt from "bcrypt";
 import { Document, ObjectId, UpdateFilter } from "mongodb";
-import { QUser, User } from "@/schema/user";
-import { Post, QPost } from "@/schema/post";
+import { QUser } from "@/schema/user";
+import { QPost } from "@/schema/post";
 
 type AuthorMap = Map<string, QUser>;
 type InteractionPath = "interactions.likes" | "interactions.forwards";

@@ -20,7 +20,7 @@ export function SearchPosts({ posts }: SearchPostsProps) {
   );
 
   const filteredAndSortedPosts = useMemo(() => {
-    let filtered = posts.filter((post) => {
+    const filtered = posts.filter((post) => {
       const searchLower = searchTerm.toLowerCase();
       return (
         post.title.toLowerCase().includes(searchLower) ||
@@ -36,7 +36,7 @@ export function SearchPosts({ posts }: SearchPostsProps) {
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
           );
         case "mostLiked":
-          return b.interactions.likes - a.interactions.likes;
+          return b.interactions.likes.length - a.interactions.likes.length;
         case "newest":
         default:
           return (

@@ -67,8 +67,8 @@ async function seedDatabase() {
             "This is the first post in our new forum. Feel free to share your thoughts and engage with the community!",
         },
         interactions: {
-          likes: 5,
-          forwards: 2,
+          likes: [adminUser, regularUser],
+          forwards: [adminUser, regularUser],
           comments: [],
         },
         createdAt: new Date(),
@@ -83,8 +83,8 @@ async function seedDatabase() {
             "Hi everyone! I'm excited to be part of this community. Looking forward to great discussions!",
         },
         interactions: {
-          likes: 3,
-          forwards: 1,
+          likes: [adminUser, regularUser],
+          forwards: [adminUser],
           comments: [],
         },
         createdAt: new Date(),
@@ -99,8 +99,8 @@ async function seedDatabase() {
             "I wanted to share some best practices I've learned over the years: 1. Write clean, readable code 2. Test thoroughly 3. Document your work 4. Stay updated with new technologies",
         },
         interactions: {
-          likes: 8,
-          forwards: 3,
+          likes: [adminUser, regularUser, anotherUser],
+          forwards: [adminUser, regularUser],
           comments: [],
         },
         createdAt: new Date(),
@@ -117,7 +117,6 @@ async function seedDatabase() {
     }
 
     console.log("Database seeded successfully!");
-    console.log("Created users:", posts.length);
     console.log("Created posts:", posts.length);
 
     // Display user credentials for testing

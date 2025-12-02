@@ -13,7 +13,7 @@
     flake-utils.lib.eachSystem nixpkgs.lib.systems.flakeExposed (
       system:
       let
-        pkgs = import nixpkgs { inherit system; config.allowUnfree=true; };
+        pkgs = import nixpkgs { inherit system; config.allowUnfree = true; };
       in
       {
         devShells.default = pkgs.mkShell {
