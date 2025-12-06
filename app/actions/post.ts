@@ -51,7 +51,9 @@ export async function createPostAction(formData: FormData) {
   // Handle optional image upload (saved under public/uploads).
   if (imageFile && imageFile.size > 0) {
     if (imageFile.size > MAX_IMAGE_BYTES) {
-      return { error: "Image is too large (max 5MB)" };
+      return {
+        error: `Image is too large (max ${MAX_IMAGE_BYTES / (1024 * 1024)}MB)`,
+      };
     }
     const ext = (path.extname(imageFile.name) || "").toLowerCase();
     if (!ALLOWED_IMAGE_EXT.includes(ext)) {
@@ -186,7 +188,9 @@ export async function updatePostAction(postId: string, formData: FormData) {
   let imageUrl: string | undefined;
   if (imageFile && imageFile.size > 0) {
     if (imageFile.size > MAX_IMAGE_BYTES) {
-      return { error: "Image is too large (max 5MB)" };
+      return {
+        error: `Image is too large (max ${MAX_IMAGE_BYTES / (1024 * 1024)}MB)`,
+      };
     }
     const ext = (path.extname(imageFile.name) || "").toLowerCase();
     if (!ALLOWED_IMAGE_EXT.includes(ext)) {
