@@ -504,7 +504,6 @@ export async function addCommentToPost(
 }
 
 // Update post title/body/images while preserving other fields.
-// Update post core fields (title/content/images) without affecting interactions.
 export async function updatePostContent(
   postId: string,
   updates: {

@@ -14,6 +14,15 @@ import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
 
+const ALLOWED_IMAGE_MIME = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+const ALLOWED_IMAGE_EXT = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 // Create a new post; handles optional image upload to public/uploads.
 export async function createPostAction(formData: FormData) {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
@@ -41,8 +50,19 @@ export async function createPostAction(formData: FormData) {
 
   // Handle optional image upload (saved under public/uploads).
   if (imageFile && imageFile.size > 0) {
+    if (imageFile.size > MAX_IMAGE_BYTES) {
+      return { error: "Image is too large (max 5MB)" };
+    }
+    const ext = (path.extname(imageFile.name) || "").toLowerCase();
+    if (!ALLOWED_IMAGE_EXT.includes(ext)) {
+      return {
+        error: "Unsupported image type. Use jpg, jpeg, png, webp, or gif",
+      };
+    }
+    if (!ALLOWED_IMAGE_MIME.includes(imageFile.type)) {
+      return { error: "Invalid image content type" };
+    }
     const buffer = Buffer.from(await imageFile.arrayBuffer());
-    const ext = path.extname(imageFile.name) || ".png";
     const filename = `${crypto.randomUUID()}${ext}`;
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await fs.mkdir(uploadDir, { recursive: true });
@@ -160,8 +180,19 @@ export async function updatePostAction(postId: string, formData: FormData) {
 
   let imageUrl: string | undefined;
   if (imageFile && imageFile.size > 0) {
+    if (imageFile.size > MAX_IMAGE_BYTES) {
+      return { error: "Image is too large (max 5MB)" };
+    }
+    const ext = (path.extname(imageFile.name) || "").toLowerCase();
+    if (!ALLOWED_IMAGE_EXT.includes(ext)) {
+      return {
+        error: "Unsupported image type. Use jpg, jpeg, png, webp, or gif",
+      };
+    }
+    if (!ALLOWED_IMAGE_MIME.includes(imageFile.type)) {
+      return { error: "Invalid image content type" };
+    }
     const buffer = Buffer.from(await imageFile.arrayBuffer());
-    const ext = path.extname(imageFile.name) || ".png";
     const filename = `${crypto.randomUUID()}${ext}`;
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await fs.mkdir(uploadDir, { recursive: true });
