@@ -242,6 +242,39 @@ export async function updateUserById(id: string, updates: unknown) {
   };
 }
 
+export async function updateUserNameById(
+  id: string,
+  newName: string,
+): Promise<QUser | null> {
+  const usersCollection = await getCollection<QUser>("users");
+
+  // Added: prevent duplicate usernames.
+  const existing = await usersCollection.findOne({
+    name: newName,
+    _id: { $ne: new ObjectId(id) },
+  });
+
+  if (existing) {
+    throw new Error("Username already taken");
+  }
+
+  const result = await usersCollection.findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    { $set: { name: newName, updatedAt: new Date() } },
+    { returnDocument: "after" },
+  );
+
+  if (!result) return null;
+
+  const validatedUser = validateUserSafe(result);
+  if (!validatedUser) return null;
+
+  return {
+    ...validatedUser,
+    _id: result._id.toString(),
+  };
+}
+
 export async function deleteUserById(id: string): Promise<boolean> {
   const usersCollection = await getCollection("users");
   const result = await usersCollection.deleteOne({ _id: new ObjectId(id) });
@@ -428,9 +461,21 @@ export async function addCommentToPost(
 ): Promise<QPost | null> {
   const postsCollection = await getCollection("posts");
 
+  // Added: load author for embedding display-friendly data into comments.
+  const author = await fetchAuthorById(authorId);
+  const commentAuthor = author
+    ? {
+        _id: author._id?.toString() ?? authorId,
+        name: author.name,
+        isAdmin: author.isAdmin,
+      }
+    : authorId;
+
+  // Added: store createdAt for each comment.
   const comment = {
-    author: authorId,
+    author: commentAuthor,
     body: { content: content },
+    createdAt: new Date(),
   };
 
   const update: UpdateFilter<Document> = {
@@ -443,6 +488,48 @@ export async function addCommentToPost(
   const result = await postsCollection.findOneAndUpdate(
     { _id: new ObjectId(postId) },
     update,
+    { returnDocument: "after" },
+  );
+
+  if (!result) return null;
+
+  const validatedPost = validateQueriedPostSafe(result);
+  if (!validatedPost) return null;
+
+  return {
+    ...validatedPost,
+    _id: result._id.toString(),
+  };
+}
+
+// Update post title/body/images while preserving other fields.
+// Update post core fields (title/content/images) without affecting interactions.
+export async function updatePostContent(
+  postId: string,
+  updates: {
+    title?: string;
+    content?: string;
+    images?: string[];
+  },
+): Promise<QPost | null> {
+  const postsCollection = await getCollection("posts");
+  const set: Record<string, unknown> = {
+    updatedAt: new Date(),
+  };
+
+  if (typeof updates.title === "string") {
+    set.title = updates.title;
+  }
+  if (typeof updates.content === "string") {
+    set["body.content"] = updates.content;
+  }
+  if (updates.images) {
+    set["body.images"] = updates.images;
+  }
+
+  const result = await postsCollection.findOneAndUpdate(
+    { _id: new ObjectId(postId) },
+    { $set: set },
     { returnDocument: "after" },
   );
 

@@ -8,6 +8,8 @@ export default function WritePostPage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,6 +21,9 @@ export default function WritePostPage() {
     const formData = new FormData();
     formData.append("title", title);
     formData.append("content", content);
+    if (imageFile) {
+      formData.append("image", imageFile);
+    }
 
     const result = await createPostAction(formData);
 
@@ -82,6 +87,37 @@ export default function WritePostPage() {
             required
             disabled={isLoading}
           />
+        </div>
+
+        <div>
+          <label
+            htmlFor="image"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Image (optional)
+          </label>
+          <input
+            id="image"
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              setImageFile(file);
+              setPreviewUrl(file ? URL.createObjectURL(file) : null);
+            }}
+            disabled={isLoading}
+            className="block w-full text-sm text-gray-700 border border-dashed border-gray-300 rounded-lg px-4 py-3 bg-white cursor-pointer hover:border-blue-400"
+          />
+          {previewUrl && (
+            <div className="mt-3">
+              <p className="text-sm text-gray-600 mb-2">Preview:</p>
+              <img
+                src={previewUrl}
+                alt="Preview"
+                className="w-full max-w-md rounded-lg border object-cover"
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex gap-4">

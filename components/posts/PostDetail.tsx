@@ -23,9 +23,11 @@ interface PostDetailProps {
       comments: PostComment[];
     };
   };
+  // currentUserId is used to decide whether to show edit controls.
+  currentUserId?: string;
 }
 
-export function PostDetail({ post }: PostDetailProps) {
+export function PostDetail({ post, currentUserId }: PostDetailProps) {
   const [likes, setLikes] = useState(post.interactions?.likes?.length || 0);
   const [forwards, setForwards] = useState(
     post.interactions?.forwards?.length || 0,
@@ -170,6 +172,20 @@ export function PostDetail({ post }: PostDetailProps) {
             {post.body.content}
           </Markdown>
 
+          {/* Render attached images if present. */}
+          {post.body.images && post.body.images.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+              {post.body.images.map((src, idx) => (
+                <img
+                  key={idx}
+                  src={src}
+                  alt={`Post image ${idx + 1}`}
+                  className="w-full rounded-lg border object-cover"
+                />
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center space-x-6 text-sm text-gray-500 pt-4 border-t">
             <button
               onClick={handleLike}
@@ -195,6 +211,15 @@ export function PostDetail({ post }: PostDetailProps) {
               <MessageCircle className="h-4 w-4" />
               <span>{comments?.length || 0} comments</span>
             </div>
+
+            {currentUserId && currentUserId === post.author._id && (
+              <a
+                href={`/posts/${post._id}/edit`}
+                className="text-blue-600 hover:underline"
+              >
+                Edit post
+              </a>
+            )}
           </div>
         </div>
       </Card>
@@ -235,7 +260,7 @@ export function PostDetail({ post }: PostDetailProps) {
               <div key={index} className="border-l-2 border-gray-200 pl-4 py-2">
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-medium text-sm text-gray-900">
-                    User {comment.author}
+                    {getCommentAuthorDisplay(comment.author)}
                   </span>
                   <span className="text-xs text-gray-500">
                     {comment.createdAt
@@ -255,4 +280,13 @@ export function PostDetail({ post }: PostDetailProps) {
       </Card>
     </div>
   );
+}
+
+// Added: normalize comment author display using name when available.
+function getCommentAuthorDisplay(author: PostComment["author"]) {
+  if (typeof author === "string") {
+    return `User ${author}`;
+  }
+
+  return author.name || author._id;
 }

@@ -5,10 +5,16 @@ import {
   incrementPostLikes as incrementPostLikesInDb,
   incrementPostForwards as incrementPostForwardsInDb,
   addCommentToPost as addCommentToPostInDb,
+  updatePostContent,
+  findPostById,
 } from "@/lib/db";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { createValidatedPost } from "@/lib/validation/post";
+import fs from "fs/promises";
+import path from "path";
+import crypto from "crypto";
 
+// Create a new post; handles optional image upload to public/uploads.
 export async function createPostAction(formData: FormData) {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
 
@@ -18,9 +24,9 @@ export async function createPostAction(formData: FormData) {
 
   const userId = currentUser.id;
 
-  // Get form data
   const title = formData.get("title") as string;
   const content = formData.get("content") as string;
+  const imageFile = formData.get("image") as File | null;
 
   // Basic validation
   if (!title || !content) {
@@ -31,11 +37,26 @@ export async function createPostAction(formData: FormData) {
     return { error: "Title and content cannot be empty" };
   }
 
+  let imageUrl: string | null = null;
+
+  // Handle optional image upload (saved under public/uploads).
+  if (imageFile && imageFile.size > 0) {
+    const buffer = Buffer.from(await imageFile.arrayBuffer());
+    const ext = path.extname(imageFile.name) || ".png";
+    const filename = `${crypto.randomUUID()}${ext}`;
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    await fs.mkdir(uploadDir, { recursive: true });
+    const filePath = path.join(uploadDir, filename);
+    await fs.writeFile(filePath, buffer);
+    imageUrl = `/uploads/${filename}`;
+  }
+
   // Create post data using the validation helper
   const postData = createValidatedPost({
     author: userId,
     title: title.trim(),
     content: content.trim(),
+    images: imageUrl ? [imageUrl] : [],
   });
 
   // Save to database
@@ -111,4 +132,57 @@ export async function addCommentAction(postId: string, content: string) {
     success: true,
     comments: result.interactions.comments,
   };
+}
+
+// Update an existing post; enforces ownership and allows replacing image.
+export async function updatePostAction(postId: string, formData: FormData) {
+  const currentUser = await requireAuthenticatedUser().catch(() => null);
+  if (!currentUser) {
+    return { error: "You must be logged in to update posts" };
+  }
+
+  const existing = await findPostById(postId);
+  if (!existing) {
+    return { error: "Post not found" };
+  }
+
+  if (existing.author !== currentUser.id) {
+    return { error: "You can only edit your own posts" };
+  }
+
+  const title = (formData.get("title") as string) ?? "";
+  const content = (formData.get("content") as string) ?? "";
+  const imageFile = formData.get("image") as File | null;
+
+  if (!title.trim() || !content.trim()) {
+    return { error: "Title and content are required" };
+  }
+
+  let imageUrl: string | undefined;
+  if (imageFile && imageFile.size > 0) {
+    const buffer = Buffer.from(await imageFile.arrayBuffer());
+    const ext = path.extname(imageFile.name) || ".png";
+    const filename = `${crypto.randomUUID()}${ext}`;
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    await fs.mkdir(uploadDir, { recursive: true });
+    const filePath = path.join(uploadDir, filename);
+    await fs.writeFile(filePath, buffer);
+    imageUrl = `/uploads/${filename}`;
+  }
+
+  const updated = await updatePostContent(postId, {
+    title: title.trim(),
+    content: content.trim(),
+    images: imageUrl
+      ? [imageUrl]
+      : Array.isArray(existing.body.images)
+        ? existing.body.images
+        : [],
+  });
+
+  if (!updated) {
+    return { error: "Failed to update post" };
+  }
+
+  return { success: true, post: updated };
 }

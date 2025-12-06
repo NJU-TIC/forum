@@ -2,6 +2,7 @@ import { PostDetail } from "@/components/posts/PostDetail";
 import { PostDetailMinimal } from "@/components/posts/PostDetailMinimal";
 import { findPostById, fetchAuthorById } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/app/actions/auth";
 
 interface PostPageProps {
   params: Promise<{ id: string }>;
@@ -35,10 +36,11 @@ async function getPostWithAuthor(id: string) {
 export default async function PostPage({ params }: PostPageProps) {
   const { id } = await params;
   const post = await getPostWithAuthor(id);
+  const currentUser = await getCurrentUser();
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <PostDetail post={post} />
+      <PostDetail post={post} currentUserId={currentUser?.id} />
     </div>
   );
 }
