@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import { Document, ObjectId, UpdateFilter, MongoServerError } from "mongodb";
 import { QUser } from "@/schema/user";
 import { QPost } from "@/schema/post";
+import { Result } from "@/types/common/result";
 
 type AuthorMap = Map<string, QUser>;
 type InteractionPath = "interactions.likes" | "interactions.forwards";
@@ -111,7 +112,7 @@ async function loadInteractionUser(userId: string): Promise<QUser | null> {
   return {
     ...validatedUser,
     _id: user._id.toString(),
-  } as QUser;
+  };
 }
 
 async function addUserToInteraction(
@@ -298,7 +299,7 @@ export async function generateCredentials(password: string) {
 }
 
 // Post operations
-export async function createPost(postData: unknown) {
+export async function createPost(postData: unknown): Promise<QPost> {
   const validatedPost = validatePostSafe(postData);
   if (!validatedPost) {
     throw new Error("Invalid post data");
@@ -511,7 +512,7 @@ export async function updatePostContent(
     content?: string;
     images?: string[];
   },
-): Promise<QPost | null> {
+): Promise<Result<QPost>> {
   const postsCollection = await getCollection("posts");
   const set: Record<string, unknown> = {
     updatedAt: new Date(),
@@ -533,14 +534,17 @@ export async function updatePostContent(
     { returnDocument: "after" },
   );
 
-  if (!result) return null;
+  if (!result) return { success: false, error: "Post not found" };
 
   const validatedPost = validateQueriedPostSafe(result);
-  if (!validatedPost) return null;
+  if (!validatedPost) return { success: false, error: "Invalid post data" };
 
   return {
-    ...validatedPost,
-    _id: result._id.toString(),
+    success: true,
+    data: {
+      ...validatedPost,
+      _id: result._id.toString(),
+    },
   };
 }
 

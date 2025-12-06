@@ -23,5 +23,5 @@ export const QueriedUserSchema = v.intersect([
 ]);
 
 export type User = v.InferOutput<typeof UserSchema>;
-export type QUser = v.InferOutput<typeof QueriedUserSchema> & Document;
+export type QUser = v.InferOutput<typeof QueriedUserSchema>;
 export type Credentials = v.InferOutput<typeof CredentialsSchema>;
