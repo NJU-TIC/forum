@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updatePostAction } from "@/app/actions/post";
 
@@ -28,6 +28,15 @@ export function EditPostForm({
 
   // Prefer a newly selected image; otherwise show existing first image if any.
   const currentImage = previewUrl || initialImages[0] || null;
+
+  // Cleanup blob URL to avoid leaks when preview changes/unmounts.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
