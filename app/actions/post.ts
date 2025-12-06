@@ -62,13 +62,18 @@ export async function createPostAction(formData: FormData) {
     if (!ALLOWED_IMAGE_MIME.includes(imageFile.type)) {
       return { error: "Invalid image content type" };
     }
-    const buffer = Buffer.from(await imageFile.arrayBuffer());
-    const filename = `${crypto.randomUUID()}${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await fs.mkdir(uploadDir, { recursive: true });
-    const filePath = path.join(uploadDir, filename);
-    await fs.writeFile(filePath, buffer);
-    imageUrl = `/uploads/${filename}`;
+    try {
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      const filename = `${crypto.randomUUID()}${ext}`;
+      const uploadDir = path.join(process.cwd(), "public", "uploads");
+      await fs.mkdir(uploadDir, { recursive: true });
+      const filePath = path.join(uploadDir, filename);
+      await fs.writeFile(filePath, buffer);
+      imageUrl = `/uploads/${filename}`;
+    } catch (error) {
+      console.error("File upload error (create):", error);
+      return { error: "Failed to upload image. Please try again." };
+    }
   }
 
   // Create post data using the validation helper
@@ -192,13 +197,18 @@ export async function updatePostAction(postId: string, formData: FormData) {
     if (!ALLOWED_IMAGE_MIME.includes(imageFile.type)) {
       return { error: "Invalid image content type" };
     }
-    const buffer = Buffer.from(await imageFile.arrayBuffer());
-    const filename = `${crypto.randomUUID()}${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await fs.mkdir(uploadDir, { recursive: true });
-    const filePath = path.join(uploadDir, filename);
-    await fs.writeFile(filePath, buffer);
-    imageUrl = `/uploads/${filename}`;
+    try {
+      const buffer = Buffer.from(await imageFile.arrayBuffer());
+      const filename = `${crypto.randomUUID()}${ext}`;
+      const uploadDir = path.join(process.cwd(), "public", "uploads");
+      await fs.mkdir(uploadDir, { recursive: true });
+      const filePath = path.join(uploadDir, filename);
+      await fs.writeFile(filePath, buffer);
+      imageUrl = `/uploads/${filename}`;
+    } catch (error) {
+      console.error("File upload error (update):", error);
+      return { error: "Failed to upload image. Please try again." };
+    }
   }
 
   const updated = await updatePostContent(postId, {
