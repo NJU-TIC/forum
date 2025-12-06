@@ -24,6 +24,18 @@ export async function updateUsernameAction(formData: FormData) {
     return { error: "Username can only contain letters, numbers, underscores, and hyphens" };
   }
 
+  // Enforce length and character constraints.
+  if (username.length < 3 || username.length > 30) {
+    return { error: "Username must be between 3 and 30 characters" };
+  }
+
+  if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    return {
+      error:
+        "Username can only contain letters, numbers, underscores, and hyphens",
+    };
+  }
+
   try {
     const updatedUser = await updateUserNameById(currentUser.id, username);
     if (!updatedUser) {

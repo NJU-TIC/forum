@@ -461,15 +461,16 @@ export async function addCommentToPost(
 ): Promise<QPost | null> {
   const postsCollection = await getCollection("posts");
 
-  // Added: load author for embedding display-friendly data into comments.
+  // Added: load author for embedding display-friendly data into comments; require a found author.
   const author = await fetchAuthorById(authorId);
-  const commentAuthor = author
-    ? {
-        _id: author._id?.toString() ?? authorId,
-        name: author.name,
-        isAdmin: author.isAdmin,
-      }
-    : authorId;
+  if (!author) {
+    return null;
+  }
+  const commentAuthor = {
+    _id: author._id?.toString() ?? authorId,
+    name: author.name,
+    isAdmin: author.isAdmin,
+  };
 
   // Added: store createdAt for each comment.
   const comment = {

@@ -12,15 +12,12 @@ export const PostBodySchema = v.object({
   images: v.optional(v.array(v.string())),
 });
 
-// Added: allow comment author to be stored as either an ID or a lean user object for display.
-const CommentAuthorSchema = v.union([
-  ObjectID,
-  v.object({
-    _id: ObjectID,
-    name: v.string(),
-    isAdmin: v.optional(v.boolean()),
-  }),
-]);
+// Added: comment author is stored as a lean user object for display.
+const CommentAuthorSchema = v.object({
+  _id: ObjectID,
+  name: v.string(),
+  isAdmin: v.optional(v.boolean()),
+});
 
 export const PostCommentSchema = v.object({
   author: CommentAuthorSchema,
