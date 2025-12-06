@@ -2,7 +2,7 @@ import { getCollection } from "../mongodb";
 import { validateUser, validateUserSafe } from "../validation/user";
 import { validatePostSafe, validateQueriedPostSafe } from "../validation/post";
 import bcrypt from "bcrypt";
-import { Document, ObjectId, UpdateFilter } from "mongodb";
+import { Document, ObjectId, UpdateFilter, MongoServerError } from "mongodb";
 import { QUser } from "@/schema/user";
 import { QPost } from "@/schema/post";
 
@@ -248,31 +248,31 @@ export async function updateUserNameById(
 ): Promise<QUser | null> {
   const usersCollection = await getCollection<QUser>("users");
 
-  // Added: prevent duplicate usernames.
-  const existing = await usersCollection.findOne({
-    name: newName,
-    _id: { $ne: new ObjectId(id) },
-  });
+  // Ensure unique index on username; repeated calls are idempotent.
+  await usersCollection.createIndex({ name: 1 }, { unique: true });
 
-  if (existing) {
-    throw new Error("Username already taken");
+  try {
+    const result = await usersCollection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: { name: newName, updatedAt: new Date() } },
+      { returnDocument: "after" },
+    );
+
+    if (!result) return null;
+
+    const validatedUser = validateUserSafe(result);
+    if (!validatedUser) return null;
+
+    return {
+      ...validatedUser,
+      _id: result._id.toString(),
+    };
+  } catch (error) {
+    if (error instanceof MongoServerError && error.code === 11000) {
+      throw new Error("Username already taken");
+    }
+    throw error;
   }
-
-  const result = await usersCollection.findOneAndUpdate(
-    { _id: new ObjectId(id) },
-    { $set: { name: newName, updatedAt: new Date() } },
-    { returnDocument: "after" },
-  );
-
-  if (!result) return null;
-
-  const validatedUser = validateUserSafe(result);
-  if (!validatedUser) return null;
-
-  return {
-    ...validatedUser,
-    _id: result._id.toString(),
-  };
 }
 
 export async function deleteUserById(id: string): Promise<boolean> {
