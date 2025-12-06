@@ -21,7 +21,7 @@ const ALLOWED_IMAGE_MIME = [
   "image/gif",
 ];
 const ALLOWED_IMAGE_EXT = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
 
 // Create a new post; handles optional image upload to public/uploads.
 export async function createPostAction(formData: FormData) {
