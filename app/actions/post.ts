@@ -13,6 +13,7 @@ import { createValidatedPost } from "@/lib/validation/post";
 import fs from "fs/promises";
 import path from "path";
 import crypto from "crypto";
+import { fileTypeFromBuffer } from "file-type";
 
 const ALLOWED_IMAGE_MIME = [
   "image/jpeg",
@@ -56,16 +57,13 @@ export async function createPostAction(formData: FormData) {
       };
     }
     const ext = (path.extname(imageFile.name) || "").toLowerCase();
-    if (!ALLOWED_IMAGE_EXT.includes(ext)) {
-      return {
-        error: "Unsupported image type. Use jpg, jpeg, png, webp, or gif",
-      };
-    }
-    if (!ALLOWED_IMAGE_MIME.includes(imageFile.type)) {
-      return { error: "Invalid image content type" };
-    }
     try {
       const buffer = Buffer.from(await imageFile.arrayBuffer());
+      const fileType = await fileTypeFromBuffer(buffer);
+
+      if (!fileType || !ALLOWED_IMAGE_MIME.includes(fileType.mime)) {
+        return { error: "Invalid image content type" };
+      }
       const filename = `${crypto.randomUUID()}${ext}`;
       const uploadDir = path.join(process.cwd(), "public", "uploads");
       await fs.mkdir(uploadDir, { recursive: true });
@@ -193,16 +191,13 @@ export async function updatePostAction(postId: string, formData: FormData) {
       };
     }
     const ext = (path.extname(imageFile.name) || "").toLowerCase();
-    if (!ALLOWED_IMAGE_EXT.includes(ext)) {
-      return {
-        error: "Unsupported image type. Use jpg, jpeg, png, webp, or gif",
-      };
-    }
-    if (!ALLOWED_IMAGE_MIME.includes(imageFile.type)) {
-      return { error: "Invalid image content type" };
-    }
     try {
       const buffer = Buffer.from(await imageFile.arrayBuffer());
+      const fileType = await fileTypeFromBuffer(buffer);
+
+      if (!fileType || !ALLOWED_IMAGE_MIME.includes(fileType.mime)) {
+        return { error: "Invalid image content type" };
+      }
       const filename = `${crypto.randomUUID()}${ext}`;
       const uploadDir = path.join(process.cwd(), "public", "uploads");
       await fs.mkdir(uploadDir, { recursive: true });
