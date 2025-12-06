@@ -5,14 +5,25 @@ export const ObjectID = v.string();
 
 /**
  * Post body or comment body
+ * Added optional images array to support post image attachments.
  */
 export const PostBodySchema = v.object({
   content: v.string(),
+  images: v.optional(v.array(v.string())),
+});
+
+// Added: comment author is stored as a lean user object for display.
+const CommentAuthorSchema = v.object({
+  _id: ObjectID,
+  name: v.string(),
+  isAdmin: v.optional(v.boolean()),
 });
 
 export const PostCommentSchema = v.object({
-  author: ObjectID,
+  author: CommentAuthorSchema,
   body: PostBodySchema,
+  // Added: keep comment timestamp for UI display.
+  createdAt: v.optional(v.date()),
 });
 
 export const PostInteractionSchema = v.object({

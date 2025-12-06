@@ -42,6 +42,7 @@ export function createValidatedPost(data: {
   author: string;
   title: string;
   content: string;
+  images?: string[];
   likes?: number;
   forwards?: number;
   comments?: Array<{ author: string; content: string }>;
@@ -51,6 +52,7 @@ export function createValidatedPost(data: {
     title: data.title,
     body: {
       content: data.content,
+      images: data.images ?? [],
     },
     interactions: {
       likes: [],

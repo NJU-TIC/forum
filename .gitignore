@@ -42,3 +42,4 @@ next-env.d.ts
 
 /.direnv/
 /db_data/
+/public/

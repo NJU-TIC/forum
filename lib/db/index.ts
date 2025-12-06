@@ -2,9 +2,10 @@ import { getCollection } from "../mongodb";
 import { validateUser, validateUserSafe } from "../validation/user";
 import { validatePostSafe, validateQueriedPostSafe } from "../validation/post";
 import bcrypt from "bcrypt";
-import { Document, ObjectId, UpdateFilter } from "mongodb";
+import { Document, ObjectId, UpdateFilter, MongoServerError } from "mongodb";
 import { QUser } from "@/schema/user";
 import { QPost } from "@/schema/post";
+import { Result } from "@/types/common/result";
 
 type AuthorMap = Map<string, QUser>;
 type InteractionPath = "interactions.likes" | "interactions.forwards";
@@ -111,7 +112,7 @@ async function loadInteractionUser(userId: string): Promise<QUser | null> {
   return {
     ...validatedUser,
     _id: user._id.toString(),
-  } as QUser;
+  };
 }
 
 async function addUserToInteraction(
@@ -242,6 +243,39 @@ export async function updateUserById(id: string, updates: unknown) {
   };
 }
 
+export async function updateUserNameById(
+  id: string,
+  newName: string,
+): Promise<QUser | null> {
+  const usersCollection = await getCollection<QUser>("users");
+
+  // Ensure unique index on username; repeated calls are idempotent.
+  await usersCollection.createIndex({ name: 1 }, { unique: true });
+
+  try {
+    const result = await usersCollection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: { name: newName, updatedAt: new Date() } },
+      { returnDocument: "after" },
+    );
+
+    if (!result) return null;
+
+    const validatedUser = validateUserSafe(result);
+    if (!validatedUser) return null;
+
+    return {
+      ...validatedUser,
+      _id: result._id.toString(),
+    };
+  } catch (error) {
+    if (error instanceof MongoServerError && error.code === 11000) {
+      throw new Error("Username already taken");
+    }
+    throw error;
+  }
+}
+
 export async function deleteUserById(id: string): Promise<boolean> {
   const usersCollection = await getCollection("users");
   const result = await usersCollection.deleteOne({ _id: new ObjectId(id) });
@@ -265,7 +299,7 @@ export async function generateCredentials(password: string) {
 }
 
 // Post operations
-export async function createPost(postData: unknown) {
+export async function createPost(postData: unknown): Promise<QPost> {
   const validatedPost = validatePostSafe(postData);
   if (!validatedPost) {
     throw new Error("Invalid post data");
@@ -428,9 +462,22 @@ export async function addCommentToPost(
 ): Promise<QPost | null> {
   const postsCollection = await getCollection("posts");
 
+  // Added: load author for embedding display-friendly data into comments; require a found author.
+  const author = await fetchAuthorById(authorId);
+  if (!author) {
+    return null;
+  }
+  const commentAuthor = {
+    _id: author._id?.toString() ?? authorId,
+    name: author.name,
+    isAdmin: author.isAdmin,
+  };
+
+  // Added: store createdAt for each comment.
   const comment = {
-    author: authorId,
+    author: commentAuthor,
     body: { content: content },
+    createdAt: new Date(),
   };
 
   const update: UpdateFilter<Document> = {
@@ -454,6 +501,50 @@ export async function addCommentToPost(
   return {
     ...validatedPost,
     _id: result._id.toString(),
+  };
+}
+
+// Update post title/body/images while preserving other fields.
+export async function updatePostContent(
+  postId: string,
+  updates: {
+    title?: string;
+    content?: string;
+    images?: string[];
+  },
+): Promise<Result<QPost>> {
+  const postsCollection = await getCollection("posts");
+  const set: Record<string, unknown> = {
+    updatedAt: new Date(),
+  };
+
+  if (typeof updates.title === "string") {
+    set.title = updates.title;
+  }
+  if (typeof updates.content === "string") {
+    set["body.content"] = updates.content;
+  }
+  if (updates.images) {
+    set["body.images"] = updates.images;
+  }
+
+  const result = await postsCollection.findOneAndUpdate(
+    { _id: new ObjectId(postId) },
+    { $set: set },
+    { returnDocument: "after" },
+  );
+
+  if (!result) return { success: false, error: "Post not found" };
+
+  const validatedPost = validateQueriedPostSafe(result);
+  if (!validatedPost) return { success: false, error: "Invalid post data" };
+
+  return {
+    success: true,
+    data: {
+      ...validatedPost,
+      _id: result._id.toString(),
+    },
   };
 }
 
