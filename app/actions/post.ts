@@ -57,23 +57,18 @@ export async function createPostAction(formData: FormData) {
       };
     }
     const ext = (path.extname(imageFile.name) || "").toLowerCase();
-    try {
-      const buffer = Buffer.from(await imageFile.arrayBuffer());
-      const fileType = await fileTypeFromBuffer(buffer);
+    const buffer = Buffer.from(await imageFile.arrayBuffer());
+    const fileType = await fileTypeFromBuffer(buffer);
 
-      if (!fileType || !ALLOWED_IMAGE_MIME.includes(fileType.mime)) {
-        return { error: "Invalid image content type" };
-      }
-      const filename = `${crypto.randomUUID()}${ext}`;
-      const uploadDir = path.join(process.cwd(), "public", "uploads");
-      await fs.mkdir(uploadDir, { recursive: true });
-      const filePath = path.join(uploadDir, filename);
-      await fs.writeFile(filePath, buffer);
-      imageUrl = `/uploads/${filename}`;
-    } catch (error) {
-      console.error("File upload error (create):", error);
-      return { error: "Failed to upload image. Please try again." };
+    if (!fileType || !ALLOWED_IMAGE_MIME.includes(fileType.mime)) {
+      return { error: "Invalid image content type" };
     }
+    const filename = `${crypto.randomUUID()}${ext}`;
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    await fs.mkdir(uploadDir, { recursive: true });
+    const filePath = path.join(uploadDir, filename);
+    await fs.writeFile(filePath, buffer);
+    imageUrl = `/uploads/${filename}`;
   }
 
   // Create post data using the validation helper
@@ -191,23 +186,18 @@ export async function updatePostAction(postId: string, formData: FormData) {
       };
     }
     const ext = (path.extname(imageFile.name) || "").toLowerCase();
-    try {
-      const buffer = Buffer.from(await imageFile.arrayBuffer());
-      const fileType = await fileTypeFromBuffer(buffer);
+    const buffer = Buffer.from(await imageFile.arrayBuffer());
+    const fileType = await fileTypeFromBuffer(buffer);
 
-      if (!fileType || !ALLOWED_IMAGE_MIME.includes(fileType.mime)) {
-        return { error: "Invalid image content type" };
-      }
-      const filename = `${crypto.randomUUID()}${ext}`;
-      const uploadDir = path.join(process.cwd(), "public", "uploads");
-      await fs.mkdir(uploadDir, { recursive: true });
-      const filePath = path.join(uploadDir, filename);
-      await fs.writeFile(filePath, buffer);
-      imageUrl = `/uploads/${filename}`;
-    } catch (error) {
-      console.error("File upload error (update):", error);
-      return { error: "Failed to upload image. Please try again." };
+    if (!fileType || !ALLOWED_IMAGE_MIME.includes(fileType.mime)) {
+      return { error: "Invalid image content type" };
     }
+    const filename = `${crypto.randomUUID()}${ext}`;
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    await fs.mkdir(uploadDir, { recursive: true });
+    const filePath = path.join(uploadDir, filename);
+    await fs.writeFile(filePath, buffer);
+    imageUrl = `/uploads/${filename}`;
   }
 
   const updated = await updatePostContent(postId, {

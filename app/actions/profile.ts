@@ -21,7 +21,10 @@ export async function updateUsernameAction(formData: FormData) {
     return { error: "Username must be between 3 and 30 characters" };
   }
   if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
-    return { error: "Username can only contain letters, numbers, underscores, and hyphens" };
+    return {
+      error:
+        "Username can only contain letters, numbers, underscores, and hyphens",
+    };
   }
 
   // Enforce length and character constraints.
@@ -36,21 +39,13 @@ export async function updateUsernameAction(formData: FormData) {
     };
   }
 
-  try {
-    const updatedUser = await updateUserNameById(currentUser.id, username);
-    if (!updatedUser) {
-      return { error: "Update failed; try again" };
-    }
-
-    return {
-      success: true,
-      name: updatedUser.name,
-    };
-  } catch (error) {
-    const message =
-      error instanceof Error && error.message
-        ? error.message
-        : "Update failed; try again";
-    return { error: message };
+  const updatedUser = await updateUserNameById(currentUser.id, username);
+  if (!updatedUser) {
+    return { error: "Update failed; try again" };
   }
+
+  return {
+    success: true,
+    name: updatedUser.name,
+  };
 }
