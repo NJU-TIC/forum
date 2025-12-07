@@ -52,7 +52,7 @@ export function EditPostForm({
 
     const result = await updatePostAction(postId, formData);
 
-    if (result?.error) {
+    if (!result.success) {
       setError(result.error);
       setIsSaving(false);
       return;

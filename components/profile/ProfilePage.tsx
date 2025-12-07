@@ -10,7 +10,7 @@ import { UsernameForm } from "./UsernameForm";
 
 interface ProfilePageProps {
   user: QUser & { _id: string };
-  posts: (QPost & { createdAt: string })[];
+  posts: QPost[];
 }
 
 export function ProfilePage({ user, posts }: ProfilePageProps) {
@@ -28,7 +28,7 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">{displayName}</h1>
-            <p className="text-gray-600">@{user.id}</p>
+            <p className="text-gray-600">@{user._id}</p>
           </div>
           {/* Button to open profile edit modal. */}
           <button

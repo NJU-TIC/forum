@@ -1,7 +1,6 @@
 "use client";
-
 import { Card } from "@/components/ui/card";
-import { QPost, PostComment } from "@/schema/post";
+import { QPost, PostComment as OriginalPostComment } from "@/schema/post";
 import { QUser } from "@/schema/user";
 import { useState } from "react";
 import { Heart, MessageCircle, Share2 } from "lucide-react";
@@ -12,17 +11,24 @@ import {
 } from "@/app/actions/post";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { dark } from "react-syntax-highlighter/dist/esm/styles/prism";
+
+type PopulatedPostComment = Omit<OriginalPostComment, "author"> & {
+  author: QUser | null;
+};
+
+type PopulatedQPost = Omit<QPost, "author" | "interactions"> & {
+  author: QUser;
+  interactions: {
+    comments: PopulatedPostComment[];
+    likes: string[];
+    forwards: string[];
+  };
+};
 
 interface PostDetailProps {
-  post: QPost & {
-    author: QUser;
-    createdAt: Date;
-    interactions: {
-      likes: QUser[];
-      forwards: QUser[];
-      comments: PostComment[];
-    };
-  };
+  post: PopulatedQPost;
   // currentUserId is used to decide whether to show edit controls.
   currentUserId?: string;
 }
@@ -32,7 +38,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
   const [forwards, setForwards] = useState(
     post.interactions?.forwards?.length || 0,
   );
-  const [comments, setComments] = useState<PostComment[]>(
+  const [comments, setComments] = useState<PopulatedPostComment[]>(
     post.interactions?.comments || [],
   );
   const [newComment, setNewComment] = useState("");
@@ -46,7 +52,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
     setIsLiking(true);
     const result = await incrementPostLikes(post._id as string);
     if (result.success) {
-      setLikes(result.likes);
+      setLikes(result.data);
     }
     setIsLiking(false);
   };
@@ -57,7 +63,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
     setIsForwarding(true);
     const result = await incrementPostForwards(post._id as string);
     if (result.success) {
-      setForwards(result.forwards);
+      setForwards(result.data);
     }
     setIsForwarding(false);
   };
@@ -72,7 +78,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
       newComment.trim(),
     );
     if (result.success) {
-      setComments(result.comments as PostComment[]);
+      setComments(result.data.comments as PopulatedPostComment[]);
       setNewComment("");
     }
     setIsAddingComment(false);
@@ -134,7 +140,6 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
                 const match = /language-(\w+)/.exec(className || "");
                 return match ? (
                   <SyntaxHighlighter
-                    {...rest}
                     PreTag="div"
                     language={match[1]}
                     style={dark}
@@ -264,11 +269,14 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
                   </span>
                   <span className="text-xs text-gray-500">
                     {comment.createdAt
-                      ? new Date(comment.createdAt).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })
+                      ? new Date(comment.createdAt).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          },
+                        )
                       : ""}
                   </span>
                 </div>
@@ -283,10 +291,9 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
 }
 
 // Added: normalize comment author display using name when available.
-function getCommentAuthorDisplay(author: PostComment["author"]) {
-  if (typeof author === "string") {
-    return `User ${author}`;
+function getCommentAuthorDisplay(author: QUser | null) {
+  if (!author) {
+    return "Unknown";
   }
-
-  return author.name || author._id;
+  return author.name;
 }

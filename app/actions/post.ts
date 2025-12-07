@@ -7,6 +7,7 @@ import {
   addCommentToPost as addCommentToPostInDb,
   updatePostContent,
   findPostById,
+  fetchAuthorsByIds,
 } from "@/lib/db";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { createValidatedPost } from "@/lib/validation/post";
@@ -169,7 +170,7 @@ export async function incrementPostForwards(
 export async function addCommentAction(
   postId: string,
   content: string,
-): Promise<Result<{ comments: Array<PostComment> }>> {
+): Promise<Result<{ comments: Array<any> }>> {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
 
   if (!currentUser) {
@@ -188,6 +189,20 @@ export async function addCommentAction(
 
   if (!result) {
     return { success: false, error: "Post not found" };
+  }
+
+  const comments = result.interactions.comments;
+  if (comments) {
+    const authorIds = comments.map((c) => c.author);
+    const authorMap = await fetchAuthorsByIds(authorIds);
+    const populatedComments = comments.map((c) => ({
+      ...c,
+      author: authorMap.get(c.author) || null,
+    }));
+    return {
+      success: true,
+      data: { comments: populatedComments },
+    };
   }
 
   return {

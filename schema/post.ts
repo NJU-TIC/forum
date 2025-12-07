@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import { UserSchema } from "./user";
+import { ObjectId as MongoObjectId } from "mongodb";
 
 export const ObjectID = v.string();
 
@@ -9,26 +10,18 @@ export const ObjectID = v.string();
  */
 export const PostBodySchema = v.object({
   content: v.string(),
-  images: v.optional(v.array(v.string())),
-});
-
-// Added: comment author is stored as a lean user object for display.
-const CommentAuthorSchema = v.object({
-  _id: ObjectID,
-  name: v.string(),
-  isAdmin: v.optional(v.boolean()),
+  images: v.array(v.string()),
 });
 
 export const PostCommentSchema = v.object({
-  author: CommentAuthorSchema,
+  author: ObjectID,
   body: PostBodySchema,
-  // Added: keep comment timestamp for UI display.
-  createdAt: v.optional(v.date()),
+  createdAt: v.date(),
 });
 
 export const PostInteractionSchema = v.object({
-  likes: v.array(UserSchema),
-  forwards: v.array(UserSchema),
+  likes: v.array(ObjectID), // array of User
+  forwards: v.array(ObjectID), // array of User
   comments: v.array(PostCommentSchema),
 });
 
@@ -44,12 +37,20 @@ export const PostSchema = v.object({
 export const QueriedPostSchema = v.intersect([
   PostSchema,
   v.object({
-    _id: v.looseObject({}),
+    _id: v.instance(MongoObjectId),
+  }),
+]);
+
+export const SerializablePostSchema = v.intersect([
+  PostSchema,
+  v.object({
+    _id: v.string(),
   }),
 ]);
 
 export type Post = v.InferOutput<typeof PostSchema>;
 export type QPost = v.InferOutput<typeof QueriedPostSchema>;
+export type SPost = v.InferOutput<typeof SerializablePostSchema>;
 export type PostBody = v.InferOutput<typeof PostBodySchema>;
 export type PostComment = v.InferOutput<typeof PostCommentSchema>;
 export type PostInteraction = v.InferOutput<typeof PostInteractionSchema>;

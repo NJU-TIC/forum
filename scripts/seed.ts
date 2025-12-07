@@ -122,13 +122,13 @@ async function seedDatabase() {
     // Display user credentials for testing
     console.log("\nTest Users:");
     console.log(
-      `- ${adminUser.name} (ID: ${adminUser.id}) - Admin: ${adminUser.isAdmin}`,
+      `- ${adminUser.name} (ID: ${adminUser._id}) - Admin: ${adminUser.isAdmin}`,
     );
     console.log(
-      `- ${regularUser.name} (ID: ${regularUser.id}) - Admin: ${regularUser.isAdmin}`,
+      `- ${regularUser.name} (ID: ${regularUser._id}) - Admin: ${regularUser.isAdmin}`,
     );
     console.log(
-      `- ${anotherUser.name} (ID: ${anotherUser.id}) - Admin: ${anotherUser.isAdmin}`,
+      `- ${anotherUser.name} (ID: ${anotherUser._id}) - Admin: ${anotherUser.isAdmin}`,
     );
     console.log("\nPasswords: admin123, user123, another123");
   } catch (error) {

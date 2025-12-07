@@ -27,11 +27,11 @@ export default function WritePostPage() {
 
     const result = await createPostAction(formData);
 
-    if (result.error) {
+    if (!result.success) {
       setError(result.error);
       setIsLoading(false);
-    } else if (result.success) {
-      router.push("/");
+    } else {
+      router.push(`/posts/${result.data.post._id}`);
     }
   };
 

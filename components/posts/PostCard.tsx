@@ -1,8 +1,8 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { QPost } from "@/schema/post";
-import { QUser } from "@/schema/user";
+import { QPost, SPost } from "@/schema/post";
+import { QUser, SUser } from "@/schema/user";
 import { incrementPostLikes, incrementPostForwards } from "@/app/actions/post";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,8 +13,8 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { dark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface PostCardProps {
-  post: QPost & {
-    author: QUser;
+  post: SPost & {
+    author: SUser;
     createdAt: Date;
   };
 }
@@ -37,7 +37,7 @@ export function PostCard({ post }: PostCardProps) {
     setLiked(true);
     const result = await incrementPostLikes(post._id);
     if (result.success) {
-      setLikes(result.likes);
+      setLikes(result.data);
     }
     setLiked(false);
   };
@@ -48,7 +48,7 @@ export function PostCard({ post }: PostCardProps) {
     setIsForwarding(true);
     const result = await incrementPostForwards(post._id);
     if (result.success) {
-      setForwards(result.forwards);
+      setForwards(result.data);
     }
     setIsForwarding(false);
   };
@@ -113,7 +113,6 @@ export function PostCard({ post }: PostCardProps) {
               const match = /language-(\w+)/.exec(className || "");
               return match ? (
                 <SyntaxHighlighter
-                  {...rest}
                   PreTag="div"
                   language={match[1]}
                   style={dark}

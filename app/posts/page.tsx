@@ -2,13 +2,13 @@ import { PostCard } from "@/components/posts/PostCard";
 import { findAllPosts, findUserById } from "@/lib/db";
 import Link from "next/link";
 import { cookies } from "next/headers";
-import type { QPost } from "@/schema/post";
-import type { QUser } from "@/schema/user";
+import type { QPost, SPost } from "@/schema/post";
+import type { QUser, SUser } from "@/schema/user";
 
-type PopulatedPost = QPost & { author: QUser; createdAt: Date };
+type PopulatedPost = SPost & { author: SUser; createdAt: Date };
 
 async function populatePostsWithAuthors(
-  posts: QPost[],
+  posts: SPost[],
 ): Promise<PopulatedPost[]> {
   const authorIds = Array.from(new Set(posts.map((post) => post.author)));
   const authors = await Promise.all(
@@ -20,7 +20,7 @@ async function populatePostsWithAuthors(
 
   const authorMap = new Map(
     authors.filter(
-      (entry): entry is readonly [string, QUser] => entry !== null,
+      (entry): entry is readonly [string, SUser] => entry !== null,
     ),
   );
 
@@ -40,7 +40,6 @@ async function populatePostsWithAuthors(
 
 async function getPosts(): Promise<PopulatedPost[]> {
   const posts = await findAllPosts();
-
   return await populatePostsWithAuthors(posts);
 }
 
