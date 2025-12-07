@@ -16,7 +16,8 @@ import path from "path";
 import crypto from "crypto";
 import { fileTypeFromBuffer } from "file-type";
 import { Result } from "@/types/common/result";
-import { PostComment, QPost } from "@/schema/post";
+import { PostComment, QPost, SPost } from "@/schema/post";
+import { SUser } from "@/schema/user";
 
 const ALLOWED_IMAGE_MIME = [
   "image/jpeg",
@@ -85,7 +86,7 @@ async function processImageUpload(
 // Create a new post; handles optional image upload to public/uploads.
 export async function createPostAction(
   formData: FormData,
-): Promise<Result<{ post: QPost }>> {
+): Promise<Result<{ post: SPost }>> {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
 
   if (!currentUser) {
@@ -170,7 +171,9 @@ export async function incrementPostForwards(
 export async function addCommentAction(
   postId: string,
   content: string,
-): Promise<Result<{ comments: Array<any> }>> {
+): Promise<
+  Result<{ comments: Array<PostComment & { author: SUser | null }> }>
+> {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
 
   if (!currentUser) {
@@ -192,22 +195,17 @@ export async function addCommentAction(
   }
 
   const comments = result.interactions.comments;
-  if (comments) {
-    const authorIds = comments.map((c) => c.author);
-    const authorMap = await fetchAuthorsByIds(authorIds);
-    const populatedComments = comments.map((c) => ({
-      ...c,
-      author: authorMap.get(c.author) || null,
-    }));
-    return {
-      success: true,
-      data: { comments: populatedComments },
-    };
-  }
+
+  const authorIds = comments.map((c) => c.author);
+  const authorMap = await fetchAuthorsByIds(authorIds);
+  const populatedComments = comments.map((c) => ({
+    ...c,
+    author: authorMap.get(c.author) || null,
+  })) as Array<PostComment & { author: SUser | null }>;
 
   return {
     success: true,
-    data: { comments: result.interactions.comments },
+    data: { comments: populatedComments },
   };
 }
 
@@ -215,7 +213,7 @@ export async function addCommentAction(
 export async function updatePostAction(
   postId: string,
   formData: FormData,
-): Promise<Result<{ post: QPost }>> {
+): Promise<Result<{ post: SPost }>> {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
   if (!currentUser) {
     return { success: false, error: "You must be logged in to update posts" };

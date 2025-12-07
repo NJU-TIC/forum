@@ -329,46 +329,27 @@ export async function findAllPosts(): Promise<SPost[]> {
 }
 
 export async function findAllPostsWithAuthors(): Promise<
-  (QPost & { author: QUser })[]
+  (SPost & { author: SUser })[]
 > {
   console.log("=== Starting findAllPostsWithAuthors ===");
-  const postsCollection = await getCollection("posts");
+  const postsCollection = await getCollection<QPost>("posts");
   const posts = await postsCollection.find({}).toArray();
   console.log(`Found ${posts.length} raw posts from database`);
 
   const sanitizedPosts = posts
     .map((rawPost) => {
-      console.log("Processing raw post:", {
-        _id: rawPost._id.toString(),
-        author: rawPost.author,
-        hasTitle: !!rawPost.title,
-        hasBody: !!rawPost.body,
-      });
-
-      const normalizedPost = {
-        ...rawPost,
-        _id: rawPost._id.toString(),
-        author: rawPost.author.toString(),
-        interactions: {
-          ...rawPost.interactions,
-          likes: rawPost.interactions.likes.map((id: any) => id.toString()),
-          forwards: rawPost.interactions.forwards.map((id: any) =>
-            id.toString(),
-          ),
-          comments: rawPost.interactions.comments.map((comment: any) => ({
-            ...comment,
-            author: comment.author.toString(),
-          })),
-        },
-      };
-      const validatedPost = validateQueriedPostSafe(normalizedPost);
+      const validatedPost = validateQueriedPostSafe(rawPost);
       if (!validatedPost) {
         console.log("Validation failed for post:", rawPost._id.toString());
         return null;
       }
-      return validatedPost;
+      const serializablePost = {
+        ...validatedPost,
+        _id: validatedPost._id.toString(),
+      };
+      return serializablePost;
     })
-    .filter((post): post is QPost => post !== null);
+    .filter((post): post is SPost => post !== null);
 
   console.log(`Validated ${sanitizedPosts.length} posts, attaching authors...`);
   const result = await attachAuthorsToPosts(sanitizedPosts);
@@ -376,7 +357,7 @@ export async function findAllPostsWithAuthors(): Promise<
   return result;
 }
 
-export async function findPostsByAuthor(authorId: string): Promise<QPost[]> {
+export async function findPostsByAuthor(authorId: string): Promise<SPost[]> {
   const postsCollection = await getCollection("posts");
   const posts = await postsCollection.find({ author: authorId }).toArray();
 
@@ -396,7 +377,7 @@ export async function findPostsByAuthor(authorId: string): Promise<QPost[]> {
 export async function updatePostById(
   id: string,
   updates: unknown,
-): Promise<QPost | null> {
+): Promise<SPost | null> {
   const postsCollection = await getCollection("posts");
 
   // Validate updates
@@ -412,7 +393,7 @@ export async function updatePostById(
   };
 
   const result = await postsCollection.findOneAndUpdate(
-    { _id: new ObjectId(id) } as any,
+    { _id: new ObjectId(id) },
     { $set: updatesWithTimestamp },
     { returnDocument: "after" },
   );
@@ -432,14 +413,14 @@ export async function deletePostById(id: string): Promise<boolean> {
   const postsCollection = await getCollection("posts");
   const result = await postsCollection.deleteOne({
     _id: new ObjectId(id),
-  } as any);
+  });
   return result.deletedCount > 0;
 }
 
 export async function incrementPostLikes(
   id: string,
   userId: string,
-): Promise<QPost | null> {
+): Promise<SPost | null> {
   return addUserToInteraction(id, userId, "interactions.likes");
 }
 

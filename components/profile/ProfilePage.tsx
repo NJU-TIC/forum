@@ -42,9 +42,7 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
           <div className="flex items-center gap-2 text-gray-600">
             <Calendar className="w-4 h-4" />
-            <span>
-              Joined {new Date(user.createdAt).toLocaleDateString()}
-            </span>
+            <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
             <FileText className="w-4 h-4" />
@@ -79,7 +77,7 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
                 key={post._id}
                 post={{
                   ...post,
-                  author: user as any,
+                  author: user,
                   createdAt: new Date(post.createdAt),
                 }}
               />
