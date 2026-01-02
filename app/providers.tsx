@@ -2,6 +2,7 @@
 
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
+import { Toaster } from "@/components/ui/sonner";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -13,5 +14,10 @@ interface ProvidersProps {
  * Use this in the root layout to avoid React context usage inside server components.
  */
 export function Providers({ children, session }: ProvidersProps) {
-  return <SessionProvider session={session}>{children}</SessionProvider>;
+  return (
+    <SessionProvider session={session}>
+      {children}
+      <Toaster />
+    </SessionProvider>
+  );
 }

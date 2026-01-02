@@ -8,28 +8,30 @@
 - Mongoose schemas in `schema/`, shared typings in `types/`, public assets in `public/`, and seed script in `scripts/seed.ts`.
 
 ## Build, Test, and Development Commands
-- `npm run dev` — start the local Next.js dev server.
-- `npm run build` — production build; fails on type errors.
-- `npm start` — run the built app.
-- `npm run lint` — ESLint across the project.
-- `npm run seed` — seed MongoDB with sample data (`bun` required).
+- `bun dev` — start the local Next.js dev server.
+- `bun run build` — production build; fails on type errors.
+- `bun start` — run the built app.
+- `bun run lint` — ESLint across the project.
+- `bun run seed` — seed MongoDB with sample data.
 
 ## Coding Style & Naming Conventions
-- TypeScript throughout; favor functional React components and hooks; keep server actions in `app/*/actions`.
+- TypeScript throughout; favor functional React components and hooks; keep server actions in `app/actions`.
+- Use `Result<T, E>` pattern for server action returns (see `types/common/result.ts`).
 - Two-space indentation, trailing commas, and named exports where practical; keep filenames kebab-case (`write-post`, `login-form.tsx`).
 - Tailwind CSS 4 for styling; prefer existing utility patterns and `tailwind-merge` to avoid class clashes.
-- Use Radix UI + custom primitives in `components/ui` before adding new dependencies.
+- Use shadcn/ui (Radix UI) + `sonner` for notifications in `components/ui`.
 
 ## Testing Guidelines
 - No formal test suite yet; add unit tests alongside code under `__tests__` or co-locate as `*.test.ts(x)` when introducing new logic.
 - Focus on pure utilities in `lib/` first; for React pieces, prefer lightweight render tests.
-- Run `npm run lint` before submitting; treat lint-clean output as a minimum bar.
+- Run `bun run lint` before submitting; treat lint-clean output as a minimum bar.
 
 ## Commit & Pull Request Guidelines
 - Follow the existing short, imperative commit style (`Add screenshot of post detail`, `Setup environment`); scope commits narrowly.
 - Branches should describe the work (`feature/search-pagination`, `fix/profile-avatar`).
-- Pull requests: include a clear summary, linked issues, screenshots for UI changes, and notes on database impacts (e.g., new fields in `schema/post.ts` or migration/seed changes).
+- Pull requests: include a clear summary, linked issues, screenshots for UI changes, and notes on database impacts.
 
 ## Environment & Security Notes
-- Required env vars: `MONGODB_URI` for database access and `NEXTAUTH_SECRET` for NextAuth; set them in `.env.local`.
-- Avoid committing secrets; prefer placeholders in examples. If touching auth/db code, verify credentials are read only from env and handled server-side.
+- Configuration is managed via `config.json`.
+- DO NOT commit `config.json` containing real secrets. Use `config.example.json` as a template.
+- Avoid environment variable fallbacks in code; strictly use `lib/config.ts`.

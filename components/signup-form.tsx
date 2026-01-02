@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -19,16 +20,13 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
+import { Result } from "@/types/common/result";
+
 export function SignupForm({
   action,
   ...props
 }: React.ComponentProps<typeof Card> & {
-  action: (formData: FormData) => Promise<{
-    success?: boolean;
-    error?: string;
-    user?: unknown;
-    shouldSignIn?: boolean;
-  }>;
+  action: (formData: FormData) => Promise<Result<{ shouldSignIn: boolean; message: string }>>;
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -37,11 +35,19 @@ export function SignupForm({
     setIsLoading(true);
     const result = await action(formData);
 
-    if (result.error) {
-      alert(result.error);
-    } else if (result.success) {
+    if (!result.success) {
+      toast.error("Registration failed", {
+        description: result.error,
+      });
+    } else {
+      if (result.data.message) {
+        toast.success("Registration successful", {
+          description: result.data.message,
+        });
+      }
+
       // If shouldSignIn is true, sign in the user on the client side
-      if (result.shouldSignIn) {
+      if (result.data.shouldSignIn) {
         const signInResult = await signIn("credentials", {
           username: formData.get("username") as string,
           password: formData.get("password") as string,
@@ -49,12 +55,20 @@ export function SignupForm({
         });
 
         if (signInResult?.error) {
-          alert(
-            "Account created but sign-in failed. Please try signing in manually.",
-          );
+          toast.error("Sign-in failed", {
+            description: "Account created but sign-in failed. Please try signing in manually.",
+          });
         }
+        router.push("/");
+      } else {
+        // Just redirect to login or stay on page if message is shown
+        // In this case, since we showed a message (check email), maybe we redirect to login after a delay
+        // or just let them read the toast.
+        // Let's redirect to login for now so they know where to go next.
+        // Or better, redirect to a page that says "Check your email"
+        // But for now, login page is fine.
+        router.push("/login");
       }
-      router.push("/");
     }
     setIsLoading(false);
   }

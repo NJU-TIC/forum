@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { type Result } from "@/types/common/result";
 
@@ -37,6 +37,24 @@ export function PostForm({
       }
     };
   }, [previewUrl]);
+
+  // 捕获Tab，是插入制表符而不是跳到下一个文本框
+  const handleContentKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const textarea = e.currentTarget;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const newContent = content.substring(0, start) + "\t" + content.substring(end);
+        setContent(newContent);
+        requestAnimationFrame(() => {
+          textarea.selectionStart = textarea.selectionEnd = start + 1;
+        });
+      }
+    },
+    [content],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +117,7 @@ export function PostForm({
           id="content"
           value={content}
           onChange={(e) => setContent(e.target.value)}
+          onKeyDown={handleContentKeyDown}
           rows={10}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
           placeholder="Write your post content..."

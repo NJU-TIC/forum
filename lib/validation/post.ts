@@ -22,13 +22,6 @@ export function validatePostSafe(data: unknown) {
  */
 export function validateQueriedPostSafe(data: unknown) {
   const result = v.safeParse(QueriedPostSchema, data);
-  if (result.success == false) {
-    console.log(`Invalid post:`);
-    console.dir(data, { depth: null });
-    const reasons = result.issues;
-    console.log(`Issues:`);
-    console.dir(reasons, { depth: null });
-  }
   return result.success ? result.output : null;
 }
 

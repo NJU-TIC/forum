@@ -1,0 +1,5 @@
+{
+  "resendApiKey": "re_your_api_key_here",
+  "allowedEmailSuffixes": ["nju.edu.cn"],
+  "mongoDbUri": "mongodb://localhost:27017/forum"
+}

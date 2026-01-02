@@ -9,49 +9,95 @@ import {
   findAllUsers,
   generateCredentials,
 } from "@/lib/db";
+import { config } from "@/lib/config";
+import { sendVerificationEmail } from "@/lib/email";
+import { Result } from "@/types/common/result";
+import { createRegistrationToken } from "@/lib/token";
+
+import { verifyRegistrationToken } from "@/lib/token";
 
 // Use database functions instead of in-memory storage
 
-export async function signupAction(formData: FormData) {
+export async function verifyUserAction(token: string): Promise<Result<null>> {
+  // Verify token
+  const payload = await verifyRegistrationToken(token);
+
+  if (!payload) {
+    return { success: false, error: "Invalid or expired verification link." };
+  }
+
+  // Check if user already exists
+  const existingUser = await findUserByName(payload.name);
+  if (existingUser) {
+    return { success: false, error: "User already exists." };
+  }
+
+  // Create user from token payload
+  await createUser({
+    name: payload.name,
+    email: payload.email,
+    credentials: payload.credentials,
+    isAdmin: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  return { success: true, data: null };
+}
+
+export async function signupAction(
+  formData: FormData,
+): Promise<Result<{ shouldSignIn: boolean; message: string }>> {
   const name = formData.get("username") as string;
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
   if (!name || !email || !password) {
-    return { error: "Username, email, and password are required" };
+    return { success: false, error: "Username, email, and password are required" };
+  }
+
+  // Validate email suffix
+  const hasAllowedSuffix = config.allowedEmailSuffixes.some((suffix) =>
+    email.endsWith(suffix),
+  );
+  if (!hasAllowedSuffix) {
+    return {
+      success: false,
+      error: `Email must end with one of: ${config.allowedEmailSuffixes.join(", ")}`,
+    };
   }
 
   const existingUser = await findUserByName(name);
   if (existingUser) {
-    return { error: "User already exists" };
+    return { success: false, error: "User already exists" };
   }
 
   const credentials = await generateCredentials(password);
 
-  const userData = {
+  // Generate stateless token
+  const token = await createRegistrationToken({
     name,
     email,
     credentials,
-    isAdmin: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  });
 
-  const newUser = await createUser(userData);
-
-  // After successful user creation, return success
-  // The client will handle the sign-in
+  // Send verification email
+  const emailResult = await sendVerificationEmail(email, token);
+  if (!emailResult.success) {
+    console.error("Failed to send verification email:", emailResult.error);
+    return {
+      success: false,
+      error: "Failed to send verification email. Please try again later.",
+    };
+  }
 
   return {
     success: true,
-    user: {
-      id: newUser._id,
-      name: newUser.name,
-      email: newUser.email,
-      createdAt: newUser.createdAt,
+    data: {
+      // No user returned yet as they are not active
+      shouldSignIn: false,
+      message: "Account created! Please check your email to verify your account.",
     },
-    // Signal that the user should be signed in on the client
-    shouldSignIn: true,
   };
 }
 
