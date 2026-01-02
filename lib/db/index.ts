@@ -103,7 +103,7 @@ async function addUserToInteraction(
 
   const update: UpdateFilter<Document> = {
     $addToSet: {
-      [interactionPath]: new ObjectId(userId),
+      [interactionPath]: userId,
     },
     $set: { updatedAt: new Date() },
   };
@@ -122,6 +122,48 @@ async function addUserToInteraction(
   return {
     ...validatedPost,
     _id: result._id.toString(),
+  };
+}
+
+async function toggleUserInteraction(
+  postId: string,
+  userId: string,
+  interactionPath: InteractionPath,
+): Promise<{ post: SPost; added: boolean } | null> {
+  const postsCollection = await getCollection("posts");
+  const post = await postsCollection.findOne({ _id: new ObjectId(postId) });
+
+  if (!post) return null;
+
+  const currentList = (interactionPath === "interactions.likes"
+    ? post.interactions?.likes
+    : post.interactions?.forwards) || [];
+
+  const alreadyExists = currentList.includes(userId);
+
+  let result;
+  if (alreadyExists) {
+    result = await postsCollection.findOneAndUpdate(
+      { _id: new ObjectId(postId) },
+      { $pull: { [interactionPath]: userId }, $set: { updatedAt: new Date() } } as unknown as UpdateFilter<Document>,
+      { returnDocument: "after" },
+    );
+  } else {
+    result = await postsCollection.findOneAndUpdate(
+      { _id: new ObjectId(postId) },
+      { $addToSet: { [interactionPath]: userId }, $set: { updatedAt: new Date() } },
+      { returnDocument: "after" },
+    );
+  }
+
+  if (!result) return null;
+
+  const validatedPost = validateQueriedPostSafe(result);
+  if (!validatedPost) return null;
+
+  return {
+    post: { ...validatedPost, _id: result._id.toString() },
+    added: !alreadyExists,
   };
 }
 
@@ -416,11 +458,25 @@ export async function incrementPostLikes(
   return addUserToInteraction(id, userId, "interactions.likes");
 }
 
+export async function togglePostLike(
+  id: string,
+  userId: string,
+): Promise<{ post: SPost; added: boolean } | null> {
+  return toggleUserInteraction(id, userId, "interactions.likes");
+}
+
 export async function incrementPostForwards(
   id: string,
   userId: string,
 ): Promise<SPost | null> {
   return addUserToInteraction(id, userId, "interactions.forwards");
+}
+
+export async function togglePostForward(
+  id: string,
+  userId: string,
+): Promise<{ post: SPost; added: boolean } | null> {
+  return toggleUserInteraction(id, userId, "interactions.forwards");
 }
 
 export async function addCommentToPost(

@@ -1,14 +1,12 @@
+import "server-only";
 import fs from "fs";
 import path from "path";
 
-// Read config.json from the current working directory
 const configPath = path.join(process.cwd(), "config.json");
 
 export interface Config {
   resendApiKey: string;
   allowedEmailSuffixes: string[];
-  nextAuthUrl: string;
-  nextAuthSecret: string;
   mongoDbUri: string;
 }
 
@@ -26,11 +24,5 @@ try {
 export const config: Config = {
   resendApiKey: configFile.resendApiKey,
   allowedEmailSuffixes: configFile.allowedEmailSuffixes,
-  nextAuthUrl: configFile.nextAuthUrl,
-  nextAuthSecret: configFile.nextAuthSecret,
   mongoDbUri: configFile.mongoDbUri,
 };
-
-// Inject into process.env for third-party libraries (e.g., NextAuth) that require env vars
-process.env.NEXTAUTH_SECRET = config.nextAuthSecret;
-process.env.NEXTAUTH_URL = config.nextAuthUrl;

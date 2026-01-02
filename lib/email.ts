@@ -8,12 +8,11 @@ export async function sendVerificationEmail(
   email: string,
   token: string,
 ): Promise<Result<any>> {
-  if (!config.nextAuthUrl) {
+  if (!process.env.NEXTAUTH_URL) {
     throw new Error("NEXTAUTH_URL is not defined");
   }
 
-  // Use a proper verification URL - assuming localhost for dev, but should be env var for prod
-  const baseUrl = config.nextAuthUrl;
+  const baseUrl = process.env.NEXTAUTH_URL;
   const verifyUrl = `${baseUrl}/verify?token=${token}`;
 
   try {

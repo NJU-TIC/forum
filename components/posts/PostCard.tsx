@@ -1,61 +1,25 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { QPost, SPost } from "@/schema/post";
-import { QUser, SUser } from "@/schema/user";
-import { incrementPostLikes, incrementPostForwards } from "@/app/actions/post";
-import { useState } from "react";
+import { SPost } from "@/schema/post";
+import { SUser } from "@/schema/user";
 import { useRouter } from "next/navigation";
-import { Heart, MessageCircle, Share2 } from "lucide-react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { dark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { PostInteractions } from "./PostInteractions";
 
 interface PostCardProps {
   post: SPost & {
     author: SUser;
     createdAt: Date;
   };
+  currentUserId?: string;
 }
 
-/**
- * A card displaying a post, with like, forward and comment buttons
- * @param post: The post to display
- * @returns
- */
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, currentUserId }: PostCardProps) {
   const router = useRouter();
-  const [likes, setLikes] = useState(post.interactions.likes.length);
-  const [forwards, setForwards] = useState(post.interactions.forwards.length);
-  const [liked, setLiked] = useState(false);
-  const [forwarded, setIsForwarding] = useState(false);
-
-  const handleLike = async () => {
-    if (liked) return;
-
-    setLiked(true);
-    const result = await incrementPostLikes(post._id);
-    if (result.success) {
-      setLikes(result.data);
-    }
-    setLiked(false);
-  };
-
-  const handleForward = async () => {
-    if (forwarded) return;
-
-    setIsForwarding(true);
-    const result = await incrementPostForwards(post._id);
-    if (result.success) {
-      setForwards(result.data);
-    }
-    setIsForwarding(false);
-  };
-
-  const handleComment = () => {
-    router.push(`/posts/${post._id}`);
-  };
 
   return (
     <Card
@@ -150,42 +114,15 @@ export function PostCard({ post }: PostCardProps) {
           {post.body.content}
         </Markdown>
 
-        <div className="flex items-center space-x-6 text-sm text-gray-500">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleLike();
-            }}
-            disabled={liked}
-            className="flex items-center space-x-1 hover:text-red-500 transition-colors disabled:opacity-50"
-          >
-            <Heart className={`h-4 w-4 ${liked ? "animate-pulse" : ""}`} />
-            <span>{likes} likes</span>
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleForward();
-            }}
-            disabled={forwarded}
-            className="flex items-center space-x-1 hover:text-blue-500 transition-colors disabled:opacity-50"
-          >
-            <Share2 className={`h-4 w-4 ${forwarded ? "animate-pulse" : ""}`} />
-            <span>{forwards} forwards</span>
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleComment();
-            }}
-            className="flex items-center space-x-1 hover:text-green-500 transition-colors"
-          >
-            <MessageCircle className="h-4 w-4" />
-            <span>{post.interactions.comments.length} comments</span>
-          </button>
-        </div>
+        <PostInteractions
+          postId={post._id}
+          initialLikes={post.interactions.likes.length}
+          initialForwards={post.interactions.forwards.length}
+          commentsCount={post.interactions.comments.length}
+          initialLiked={currentUserId ? post.interactions.likes.includes(currentUserId) : false}
+          initialForwarded={currentUserId ? post.interactions.forwards.includes(currentUserId) : false}
+          onCommentClick={() => router.push(`/posts/${post._id}`)}
+        />
       </div>
     </Card>
   );

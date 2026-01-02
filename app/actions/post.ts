@@ -2,8 +2,8 @@
 
 import {
   createPost,
-  incrementPostLikes as incrementPostLikesInDb,
-  incrementPostForwards as incrementPostForwardsInDb,
+  togglePostLike as togglePostLikeInDb,
+  togglePostForward as togglePostForwardInDb,
   addCommentToPost as addCommentToPostInDb,
   updatePostContent,
   findPostById,
@@ -126,16 +126,16 @@ export async function createPostAction(
   };
 }
 
-export async function incrementPostLikes(
+export async function togglePostLike(
   postId: string,
-): Promise<Result<number>> {
+): Promise<Result<{ count: number; liked: boolean }>> {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
 
   if (!currentUser) {
     return { success: false, error: "You must be logged in to like posts" };
   }
 
-  const result = await incrementPostLikesInDb(postId, currentUser.id);
+  const result = await togglePostLikeInDb(postId, currentUser.id);
 
   if (!result) {
     return { success: false, error: "Post not found" };
@@ -143,20 +143,23 @@ export async function incrementPostLikes(
 
   return {
     success: true,
-    data: result.interactions.likes.length,
+    data: {
+      count: result.post.interactions.likes.length,
+      liked: result.added,
+    },
   };
 }
 
-export async function incrementPostForwards(
+export async function togglePostForward(
   postId: string,
-): Promise<Result<number>> {
+): Promise<Result<{ count: number; forwarded: boolean }>> {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
 
   if (!currentUser) {
     return { success: false, error: "You must be logged in to forward posts" };
   }
 
-  const result = await incrementPostForwardsInDb(postId, currentUser.id);
+  const result = await togglePostForwardInDb(postId, currentUser.id);
 
   if (!result) {
     return { success: false, error: "Post not found" };
@@ -164,7 +167,10 @@ export async function incrementPostForwards(
 
   return {
     success: true,
-    data: result.interactions.forwards.length,
+    data: {
+      count: result.post.interactions.forwards.length,
+      forwarded: result.added,
+    },
   };
 }
 

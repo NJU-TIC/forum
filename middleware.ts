@@ -1,11 +1,9 @@
 import { withAuth } from "next-auth/middleware";
 
 export default withAuth(
-  // `withAuth` augments your `Request` with the user's token.
-  function middleware(req) {
-    // Additional middleware logic can go here if needed
-  },
+  function middleware(req) {},
   {
+    secret: process.env.NEXTAUTH_SECRET,
     callbacks: {
       authorized: ({ token }) => !!token,
     },

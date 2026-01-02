@@ -1,7 +1,5 @@
 {
   "resendApiKey": "re_your_api_key_here",
   "allowedEmailSuffixes": ["nju.edu.cn"],
-  "nextAuthUrl": "http://localhost:3000",
-  "nextAuthSecret": "your-secret-key-at-least-32-chars",
   "mongoDbUri": "mongodb://localhost:27017/forum"
 }

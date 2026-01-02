@@ -1,11 +1,11 @@
+import "server-only";
 import type { NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcrypt";
 import { findUserByName } from "@/lib/db";
-import { config } from "@/lib/config";
 
 export const authOptions: NextAuthOptions = {
-  secret: config.nextAuthSecret,
+  secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [

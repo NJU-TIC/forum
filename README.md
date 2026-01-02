@@ -23,9 +23,21 @@
 2. Edit `config.json` with your actual configuration:
    - `resendApiKey`: Your Resend API key for sending emails
    - `allowedEmailSuffixes`: List of allowed email domains for registration
-   - `nextAuthUrl`: Base URL of your application (e.g., http://localhost:3000)
-   - `nextAuthSecret`: Secret key for session encryption (generate with `openssl rand -base64 32`)
    - `mongoDbUri`: MongoDB connection string
+
+3. Set environment variables (required for NextAuth):
+   ```bash
+   export NEXTAUTH_URL="http://localhost:3000"
+   export NEXTAUTH_SECRET="your-secret-key-at-least-32-chars"
+   ```
+   
+   You can generate a secret with: `openssl rand -base64 32`
+
+   Or create a `.env.local` file:
+   ```
+   NEXTAUTH_URL=http://localhost:3000
+   NEXTAUTH_SECRET=your-secret-key-at-least-32-chars
+   ```
 
 ### Running the App
 
@@ -43,4 +55,3 @@
    ```bash
    bun dev
    ```
-

@@ -3,16 +3,12 @@ import { Card } from "@/components/ui/card";
 import { QPost, PostComment as OriginalPostComment } from "@/schema/post";
 import { QUser } from "@/schema/user";
 import { useState } from "react";
-import { Heart, MessageCircle, Share2 } from "lucide-react";
-import {
-  incrementPostLikes,
-  incrementPostForwards,
-  addCommentAction,
-} from "@/app/actions/post";
+import { addCommentAction } from "@/app/actions/post";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { dark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { PostInteractions } from "./PostInteractions";
 
 type PopulatedPostComment = Omit<OriginalPostComment, "author"> & {
   author: QUser | null;
@@ -29,44 +25,15 @@ type PopulatedQPost = Omit<QPost, "author" | "interactions"> & {
 
 interface PostDetailProps {
   post: PopulatedQPost;
-  // currentUserId is used to decide whether to show edit controls.
   currentUserId?: string;
 }
 
 export function PostDetail({ post, currentUserId }: PostDetailProps) {
-  const [likes, setLikes] = useState(post.interactions?.likes?.length || 0);
-  const [forwards, setForwards] = useState(
-    post.interactions?.forwards?.length || 0,
-  );
   const [comments, setComments] = useState<PopulatedPostComment[]>(
     post.interactions?.comments || [],
   );
   const [newComment, setNewComment] = useState("");
-  const [isLiking, setIsLiking] = useState(false);
-  const [isForwarding, setIsForwarding] = useState(false);
   const [isAddingComment, setIsAddingComment] = useState(false);
-
-  const handleLike = async () => {
-    if (isLiking) return;
-
-    setIsLiking(true);
-    const result = await incrementPostLikes(post._id as string);
-    if (result.success) {
-      setLikes(result.data);
-    }
-    setIsLiking(false);
-  };
-
-  const handleForward = async () => {
-    if (isForwarding) return;
-
-    setIsForwarding(true);
-    const result = await incrementPostForwards(post._id as string);
-    if (result.success) {
-      setForwards(result.data);
-    }
-    setIsForwarding(false);
-  };
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +41,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
 
     setIsAddingComment(true);
     const result = await addCommentAction(
-      post._id as string,
+      post._id.toString(),
       newComment.trim(),
     );
     if (result.success) {
@@ -84,9 +51,10 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
     setIsAddingComment(false);
   };
 
+  const isAuthor = currentUserId && currentUserId === post.author._id.toString();
+
   return (
     <div className="space-y-6">
-      {/* Post Content */}
       <Card className="p-6">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -177,7 +145,6 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
             {post.body.content}
           </Markdown>
 
-          {/* Render attached images if present. */}
           {post.body.images && post.body.images.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
               {post.body.images.map((src, idx) => (
@@ -191,49 +158,24 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
             </div>
           )}
 
-          <div className="flex items-center space-x-6 text-sm text-gray-500 pt-4 border-t">
-            <button
-              onClick={handleLike}
-              disabled={isLiking}
-              className="flex items-center space-x-1 hover:text-red-500 transition-colors disabled:opacity-50"
-            >
-              <Heart className={`h-4 w-4 ${isLiking ? "animate-pulse" : ""}`} />
-              <span>{likes || 0} likes</span>
-            </button>
-
-            <button
-              onClick={handleForward}
-              disabled={isForwarding}
-              className="flex items-center space-x-1 hover:text-blue-500 transition-colors disabled:opacity-50"
-            >
-              <Share2
-                className={`h-4 w-4 ${isForwarding ? "animate-pulse" : ""}`}
-              />
-              <span>{forwards || 0} forwards</span>
-            </button>
-
-            <div className="flex items-center space-x-1">
-              <MessageCircle className="h-4 w-4" />
-              <span>{comments?.length || 0} comments</span>
-            </div>
-
-            {currentUserId && currentUserId === post.author._id && (
-              <a
-                href={`/posts/${post._id}/edit`}
-                className="text-blue-600 hover:underline"
-              >
-                Edit post
-              </a>
-            )}
+          <div className="pt-4 border-t">
+            <PostInteractions
+              postId={post._id.toString()}
+              initialLikes={post.interactions?.likes?.length || 0}
+              initialForwards={post.interactions?.forwards?.length || 0}
+              commentsCount={comments.length}
+              initialLiked={currentUserId ? post.interactions?.likes?.includes(currentUserId) : false}
+              initialForwarded={currentUserId ? post.interactions?.forwards?.includes(currentUserId) : false}
+              showEditLink={!!isAuthor}
+              editHref={`/posts/${post._id.toString()}/edit`}
+            />
           </div>
         </div>
       </Card>
 
-      {/* Comments Section */}
       <Card className="p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Comments</h2>
 
-        {/* Add Comment Form */}
         <form onSubmit={handleAddComment} className="mb-6">
           <div className="flex gap-3">
             <input
@@ -254,7 +196,6 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
           </div>
         </form>
 
-        {/* Comments List */}
         <div className="space-y-4">
           {comments.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
@@ -290,7 +231,6 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
   );
 }
 
-// Added: normalize comment author display using name when available.
 function getCommentAuthorDisplay(author: QUser | null) {
   if (!author) {
     return "Unknown";

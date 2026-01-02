@@ -1,12 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
 import { Credentials } from "@/schema/user";
-import { config } from "@/lib/config";
 
-if (!config.nextAuthSecret) {
+if (!process.env.NEXTAUTH_SECRET) {
   throw new Error("NEXTAUTH_SECRET is not defined");
 }
 
-const SECRET_KEY = new TextEncoder().encode(config.nextAuthSecret);
+const SECRET_KEY = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 const ALG = "HS256";
 
 export interface RegistrationPayload {
