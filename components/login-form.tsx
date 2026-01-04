@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -38,7 +39,9 @@ export function LoginForm({
     const result = await action(formData);
 
     if (result.error) {
-      alert(result.error);
+      toast.error("Login failed", {
+        description: result.error,
+      });
     } else if (result.success) {
       // If credentials are provided, sign in on the client side
       if (result.credentials) {
@@ -49,10 +52,16 @@ export function LoginForm({
         });
 
         if (signInResult?.error) {
-          alert("Sign-in failed. Please try again.");
+          // Show the actual error message if available, otherwise a generic one
+          toast.error("Sign-in failed", {
+            description: signInResult.error || "Please try again.",
+          });
           return;
         }
       }
+      toast.success("Welcome back!", {
+        description: "You have successfully signed in.",
+      });
       router.push("/");
     }
     setIsLoading(false);

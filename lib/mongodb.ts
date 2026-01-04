@@ -1,10 +1,11 @@
 import { MongoClient, Db, Collection, Document } from "mongodb";
+import { config } from "@/lib/config";
 
-const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_URI = config.mongoDbUri;
 
 if (!MONGODB_URI) {
   throw new Error(
-    "Please define the MONGODB_URI environment variable inside .env.local",
+    "Please define the MONGODB_URI environment variable inside .env.local or config.json",
   );
 }
 

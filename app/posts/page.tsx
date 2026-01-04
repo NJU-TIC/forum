@@ -1,9 +1,9 @@
 import { PostCard } from "@/components/posts/PostCard";
 import { findAllPosts, findUserById } from "@/lib/db";
 import Link from "next/link";
-import { cookies } from "next/headers";
 import type { QPost, SPost } from "@/schema/post";
 import type { QUser, SUser } from "@/schema/user";
+import { getCurrentUser } from "@/app/actions/auth";
 
 type PopulatedPost = SPost & { author: SUser; createdAt: Date };
 
@@ -45,11 +45,8 @@ async function getPosts(): Promise<PopulatedPost[]> {
 
 export default async function HomePage() {
   const posts = await getPosts();
-
-  // Check if user is logged in
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session");
-  const isLoggedIn = !!sessionCookie;
+  const currentUser = await getCurrentUser();
+  const isLoggedIn = !!currentUser;
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -74,7 +71,7 @@ export default async function HomePage() {
       ) : (
         <div>
           {posts.map((post) => (
-            <PostCard key={post._id} post={post} />
+            <PostCard key={post._id} post={post} currentUserId={currentUser?.id} />
           ))}
         </div>
       )}
