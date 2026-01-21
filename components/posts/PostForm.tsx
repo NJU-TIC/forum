@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type Result } from "@/types/common/result";
+import { MarkdownEditor } from "./MarkdownEditor";
 
 interface PostFormProps {
   action: (formData: FormData) => Promise<Result<{ post: { _id: string } }>>;
@@ -37,24 +38,6 @@ export function PostForm({
       }
     };
   }, [previewUrl]);
-
-  // 捕获Tab，是插入制表符而不是跳到下一个文本框
-  const handleContentKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Tab") {
-        e.preventDefault();
-        const textarea = e.currentTarget;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const newContent = content.substring(0, start) + "\t" + content.substring(end);
-        setContent(newContent);
-        requestAnimationFrame(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + 1;
-        });
-      }
-    },
-    [content],
-  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,15 +96,9 @@ export function PostForm({
         >
           Content
         </label>
-        <textarea
-          id="content"
+        <MarkdownEditor
           value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onKeyDown={handleContentKeyDown}
-          rows={10}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
-          placeholder="Write your post content..."
-          required
+          onChange={setContent}
           disabled={isSaving}
         />
       </div>
@@ -131,7 +108,7 @@ export function PostForm({
           htmlFor="image"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Image (optional)
+          Cover Image (optional)
         </label>
         <input
           id="image"
