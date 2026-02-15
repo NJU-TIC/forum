@@ -7,7 +7,7 @@ const resend = new Resend(config.resendApiKey);
 export async function sendVerificationEmail(
   email: string,
   token: string,
-): Promise<Result<any>> {
+): Promise<Result<unknown>> {
   if (!process.env.NEXTAUTH_URL) {
     throw new Error("NEXTAUTH_URL is not defined");
   }
