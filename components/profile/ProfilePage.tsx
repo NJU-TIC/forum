@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { QUser } from "@/schema/user";
-import { QPost } from "@/schema/post";
+import { SUser } from "@/schema/user";
+import { SPost } from "@/schema/post";
 import { PostCard } from "@/components/posts/PostCard";
 import { User, Calendar, FileText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { UsernameForm } from "./UsernameForm";
 
 interface ProfilePageProps {
-  user: QUser & { _id: string };
-  posts: QPost[];
+  user: SUser;
+  posts: SPost[];
 }
 
 export function ProfilePage({ user, posts }: ProfilePageProps) {
@@ -75,11 +75,13 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
             {posts.map((post) => (
               <PostCard
                 key={post._id}
-                post={{
-                  ...post,
-                  author: user,
-                  createdAt: new Date(post.createdAt),
-                }}
+                post={
+                  {
+                    ...post,
+                    author: user,
+                    createdAt: new Date(post.createdAt),
+                  } as SPost & { author: SUser; createdAt: Date }
+                }
               />
             ))}
           </div>

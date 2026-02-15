@@ -1,7 +1,7 @@
 "use client";
 import { Card } from "@/components/ui/card";
-import { QPost, PostComment as OriginalPostComment } from "@/schema/post";
-import { QUser } from "@/schema/user";
+import { SPost, PostComment as OriginalPostComment } from "@/schema/post";
+import { SUser } from "@/schema/user";
 import { useState } from "react";
 import { addCommentAction } from "@/app/actions/post";
 import Markdown from "react-markdown";
@@ -11,11 +11,11 @@ import { dark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { PostInteractions } from "./PostInteractions";
 
 type PopulatedPostComment = Omit<OriginalPostComment, "author"> & {
-  author: QUser | null;
+  author: SUser | null;
 };
 
-type PopulatedQPost = Omit<QPost, "author" | "interactions"> & {
-  author: QUser;
+type PopulatedQPost = Omit<SPost, "author" | "interactions"> & {
+  author: SUser;
   interactions: {
     comments: PopulatedPostComment[];
     likes: string[];
@@ -231,7 +231,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
   );
 }
 
-function getCommentAuthorDisplay(author: QUser | null) {
+function getCommentAuthorDisplay(author: SUser | null) {
   if (!author) {
     return "Unknown";
   }
