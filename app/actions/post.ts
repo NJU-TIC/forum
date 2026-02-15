@@ -16,7 +16,7 @@ import path from "path";
 import crypto from "crypto";
 import { fileTypeFromBuffer } from "file-type";
 import { Result } from "@/types/common/result";
-import { PostComment, QPost, SPost } from "@/schema/post";
+import { PostComment, SPost } from "@/schema/post";
 import { SUser } from "@/schema/user";
 
 const ALLOWED_IMAGE_MIME = [
@@ -25,7 +25,6 @@ const ALLOWED_IMAGE_MIME = [
   "image/webp",
   "image/gif",
 ];
-const ALLOWED_IMAGE_EXT = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
 
 // Helper function to validate form data
@@ -66,7 +65,6 @@ async function processImageUpload(
     };
   }
 
-  const ext = (path.extname(imageFile.name) || "").toLowerCase();
   const buffer = Buffer.from(await imageFile.arrayBuffer());
   const fileType = await fileTypeFromBuffer(buffer);
 
@@ -74,6 +72,7 @@ async function processImageUpload(
     return { success: false, error: "Invalid image content type" };
   }
 
+  const ext = `.${fileType.ext.toLowerCase()}`;
   const filename = `${crypto.randomUUID()}${ext}`;
   const uploadDir = path.join(process.cwd(), "public", "uploads");
   await fs.mkdir(uploadDir, { recursive: true });
