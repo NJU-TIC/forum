@@ -74,25 +74,22 @@ jobs:
             -e "ssh -p ${SERVER_PORT:-22}" \
             ./ "${SERVER_USER}@${SERVER_HOST}:${SERVER_APP_DIR}"
 
-      - name: Install, build and restart service
+      - name: Install and restart service
         run: |
-          SERVER_APP_DIR_ESCAPED=$(printf '%q' "$SERVER_APP_DIR")
-          SYSTEMD_SERVICE_ESCAPED=$(printf '%q' "$SYSTEMD_SERVICE")
-
-          ssh -p "${SERVER_PORT:-22}" "${SERVER_USER}@${SERVER_HOST}" "SERVER_APP_DIR=${SERVER_APP_DIR_ESCAPED} SYSTEMD_SERVICE=${SYSTEMD_SERVICE_ESCAPED} bash -s" <<'EOF'
+          ssh -p "${SERVER_PORT:-22}" "${SERVER_USER}@${SERVER_HOST}" \
+            "SERVER_APP_DIR='${SERVER_APP_DIR}' SYSTEMD_SERVICE='${SYSTEMD_SERVICE}' bash -s" <<'EOF'
           set -euo pipefail
-
-          export BUN_INSTALL="$HOME/.bun"
-          export PATH="$BUN_INSTALL/bin:$PATH"
-
-          cd "$SERVER_APP_DIR"
-          bun install --frozen-lockfile
-          bun run build
 
           if [ -z "${SYSTEMD_SERVICE:-}" ]; then
             echo "SYSTEMD_SERVICE secret is empty."
             exit 1
           fi
+
+          export BUN_INSTALL="$HOME/.bun"
+          export PATH="$BUN_INSTALL/bin:$PATH"
+
+          cd "$SERVER_APP_DIR"
+          bun install
 
           sudo systemctl restart "$SYSTEMD_SERVICE"
           sudo systemctl is-active "$SYSTEMD_SERVICE"
