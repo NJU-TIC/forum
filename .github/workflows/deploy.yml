@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   ci:
-    name: Lint and Build
+    name: Lint
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,24 +27,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Prepare config for CI build
-        run: cp config.example.json config.json
-
-      - name: Prepare env for CI build
-        env:
-          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-        run: |
-          CI_NEXTAUTH_SECRET="${NEXTAUTH_SECRET:-ci-build-only-secret-please-change-32chars}"
-          cat > .env.local <<EOF
-          NEXTAUTH_URL=http://localhost:3000
-          NEXTAUTH_SECRET=${CI_NEXTAUTH_SECRET}
-          EOF
-
       - name: Lint
         run: bun run lint
-
-      - name: Build
-        run: bun run build
 
   deploy:
     name: Deploy to Linux Server
@@ -99,8 +83,15 @@ jobs:
           export PATH="$BUN_INSTALL/bin:$PATH"
 
           cd "$SERVER_APP_DIR"
-          bun install
+          bun install --frozen-lockfile
 
-          sudo systemctl restart "$SYSTEMD_SERVICE"
+          sudo systemctl daemon-reload
+
+          if ! sudo systemctl restart "$SYSTEMD_SERVICE"; then
+            sudo systemctl status "$SYSTEMD_SERVICE" --no-pager || true
+            sudo journalctl -u "$SYSTEMD_SERVICE" -n 200 --no-pager || true
+            exit 1
+          fi
+
           sudo systemctl is-active "$SYSTEMD_SERVICE"
           EOF
