@@ -71,7 +71,10 @@ jobs:
 
       - name: Install, build and restart service
         run: |
-          ssh -p "${SERVER_PORT:-22}" "${SERVER_USER}@${SERVER_HOST}" "SERVER_APP_DIR='${SERVER_APP_DIR}' SYSTEMD_SERVICE='${SYSTEMD_SERVICE}' bash -s" <<'EOF'
+          SERVER_APP_DIR_ESCAPED=$(printf '%q' "$SERVER_APP_DIR")
+          SYSTEMD_SERVICE_ESCAPED=$(printf '%q' "$SYSTEMD_SERVICE")
+
+          ssh -p "${SERVER_PORT:-22}" "${SERVER_USER}@${SERVER_HOST}" "SERVER_APP_DIR=${SERVER_APP_DIR_ESCAPED} SYSTEMD_SERVICE=${SYSTEMD_SERVICE_ESCAPED} bash -s" <<'EOF'
           set -euo pipefail
 
           export BUN_INSTALL="$HOME/.bun"
