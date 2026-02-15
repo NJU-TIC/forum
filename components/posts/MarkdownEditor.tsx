@@ -25,6 +25,12 @@ import {
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
 
+type MarkdownStorage = {
+  markdown?: {
+    getMarkdown?: () => string;
+  };
+};
+
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -52,7 +58,9 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
     content: value,
     editable: !disabled,
     onUpdate: ({ editor }) => {
-      onChange((editor.storage as any).markdown.getMarkdown());
+      const storage = editor.storage as MarkdownStorage;
+      const markdown = storage.markdown?.getMarkdown?.() ?? "";
+      onChange(markdown);
     },
     editorProps: {
       attributes: {
