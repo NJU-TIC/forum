@@ -30,6 +30,16 @@ jobs:
       - name: Prepare config for CI build
         run: cp config.example.json config.json
 
+      - name: Prepare env for CI build
+        env:
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        run: |
+          CI_NEXTAUTH_SECRET="${NEXTAUTH_SECRET:-ci-build-only-secret-please-change-32chars}"
+          cat > .env.local <<EOF
+          NEXTAUTH_URL=http://localhost:3000
+          NEXTAUTH_SECRET=${CI_NEXTAUTH_SECRET}
+          EOF
+
       - name: Lint
         run: bun run lint
 
