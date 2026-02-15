@@ -13,6 +13,13 @@ interface ProfilePageProps {
   posts: SPost[];
 }
 
+const profileDateFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
 export function ProfilePage({ user, posts }: ProfilePageProps) {
   // Track display name for header and modal visibility for editing.
   const [displayName, setDisplayName] = useState(user.name);
@@ -42,7 +49,9 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
           <div className="flex items-center gap-2 text-gray-600">
             <Calendar className="w-4 h-4" />
-            <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+            <span>
+              Joined {profileDateFormatter.format(new Date(user.createdAt))}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
             <FileText className="w-4 h-4" />

@@ -18,17 +18,23 @@ export default function VerifyPage() {
 
     let cancelled = false;
 
-    verifyUserAction(token).then((result) => {
-      if (cancelled) return;
+    verifyUserAction(token)
+      .then((result) => {
+        if (cancelled) return;
 
-      if (result.success) {
-        setStatus("success");
-        return;
-      }
+        if (result.success) {
+          setStatus("success");
+          return;
+        }
 
-      setStatus("error");
-      setErrorMessage(result.error || "Verification failed.");
-    });
+        setStatus("error");
+        setErrorMessage(result.error || "Verification failed.");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStatus("error");
+        setErrorMessage("Verification request failed. Please try again.");
+      });
 
     return () => {
       cancelled = true;

@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1df1d2cb-68c4-4595-8dea-6348df1d4531" name="更改" comment="">
-      <change beforePath="$PROJECT_DIR$/app/actions/auth.ts" beforeDir="false" afterPath="$PROJECT_DIR$/app/actions/auth.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/bun.lock" beforeDir="false" afterPath="$PROJECT_DIR$/bun.lock" afterDir="false" />
+    <list default="true" id="1df1d2cb-68c4-4595-8dea-6348df1d4531" name="更改" comment="Fix dev auto deploy">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/verify/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/app/verify/page.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -16,44 +16,45 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN",
-    "assignee": "SelfLo06"
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;SelfLo06&quot;
   }
-}]]></component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/NJU-TIC/forum.git",
-    "accountId": "9ed289c1-2777-446c-84e2-83536361cb79"
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/NJU-TIC/forum.git&quot;,
+    &quot;accountId&quot;: &quot;9ed289c1-2777-446c-84e2-83536361cb79&quot;
   }
-}]]></component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 1
-}]]></component>
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 1
+}</component>
   <component name="ProjectId" id="37ma22Uv1j5X1F3br30WsH8duu4" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "feat/email-verification 上的 #14",
-    "js.debugger.nextJs.config.created.client": "true",
-    "js.debugger.nextJs.config.created.server": "true",
-    "last_opened_file_path": "//wsl$/Ubuntu/home/selflo/MyCodes/forum/test/forum",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "bun",
-    "ts.external.directory.path": "\\\\wsl$\\Ubuntu\\home\\selflo\\MyCodes\\forum\\test\\forum\\node_modules\\typescript\\lib",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;SONARLINT_PRECOMMIT_ANALYSIS&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;feat/github-action 上的 #20&quot;,
+    &quot;js.debugger.nextJs.config.created.client&quot;: &quot;true&quot;,
+    &quot;js.debugger.nextJs.config.created.server&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;//wsl$/Ubuntu/home/selflo/MyCodes/forum/test/forum&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;bun&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;\\\\wsl$\\Ubuntu\\home\\selflo\\MyCodes\\forum\\forum\\node_modules\\typescript\\lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected="npm.Next.js: 服务器端">
     <configuration name="Next.js: 调试客户端" type="JavascriptDebugType" uri="http://localhost:3000/">
       <method v="2" />
@@ -84,11 +85,60 @@
       <option name="presentableId" value="Default" />
       <updated>1767510489241</updated>
       <workItem from="1767510490773" duration="679000" />
+      <workItem from="1771149712777" duration="62000" />
     </task>
+    <task id="LOCAL-00001" summary="fix : test">
+      <option name="closed" value="true" />
+      <created>1771140544234</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1771140544234</updated>
+    </task>
+    <task id="LOCAL-00002" summary="fix : test">
+      <option name="closed" value="true" />
+      <created>1771144242116</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1771144242116</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Fix TS ObjectId/string type mismatches for build">
+      <option name="closed" value="true" />
+      <created>1771145052004</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1771145052004</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Fix:Use NEXTAUTH_SECRET secret for CI build env">
+      <option name="closed" value="true" />
+      <created>1771145265564</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1771145265564</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Fix dev auto deploy">
+      <option name="closed" value="true" />
+      <created>1771146097935</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1771146097935</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="fix : test" />
+    <MESSAGE value="Fix TS ObjectId/string type mismatches for build" />
+    <MESSAGE value="Fix:Use NEXTAUTH_SECRET secret for CI build env" />
+    <MESSAGE value="Fix dev auto deploy" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fix dev auto deploy" />
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>
