@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { type Result } from "@/types/common/result";
 import { MarkdownEditor } from "./MarkdownEditor";
 
@@ -26,10 +25,11 @@ export function PostForm({
   const [content, setContent] = useState(initialContent);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [removeCurrentImage, setRemoveCurrentImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const currentImage = previewUrl || initialImages[0] || null;
+  const currentImage = previewUrl || (!removeCurrentImage ? initialImages[0] : null);
 
   useEffect(() => {
     return () => {
@@ -49,6 +49,9 @@ export function PostForm({
     formData.append("content", content);
     if (imageFile) {
       formData.append("image", imageFile);
+    }
+    if (removeCurrentImage && !imageFile) {
+      formData.append("removeImage", "1");
     }
 
     const result = await action(formData);
@@ -117,6 +120,7 @@ export function PostForm({
           onChange={(e) => {
             const file = e.target.files?.[0] || null;
             setImageFile(file);
+            setRemoveCurrentImage(false);
             setPreviewUrl(file ? URL.createObjectURL(file) : null);
           }}
           disabled={isSaving}
@@ -130,6 +134,21 @@ export function PostForm({
               alt="Preview"
               className="w-full max-w-md rounded-lg border object-cover"
             />
+            <button
+              type="button"
+              onClick={() => {
+                if (previewUrl) {
+                  URL.revokeObjectURL(previewUrl);
+                }
+                setPreviewUrl(null);
+                setImageFile(null);
+                setRemoveCurrentImage(true);
+              }}
+              disabled={isSaving}
+              className="mt-3 px-3 py-2 text-sm bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100 disabled:opacity-50"
+            >
+              Remove image
+            </button>
           </div>
         )}
       </div>
