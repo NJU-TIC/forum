@@ -65,6 +65,8 @@ jobs:
       SERVER_USER: ${{ secrets.SERVER_USER }}
       SERVER_APP_DIR: ${{ secrets.SERVER_APP_DIR }}
       SYSTEMD_SERVICE: ${{ secrets.SYSTEMD_SERVICE }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -94,16 +96,22 @@ jobs:
       - name: Install, build and restart service
         run: |
           ssh -p "${SERVER_PORT:-22}" "${SERVER_USER}@${SERVER_HOST}" \
-            "SERVER_APP_DIR='${SERVER_APP_DIR}' SYSTEMD_SERVICE='${SYSTEMD_SERVICE}' bash -s" <<'EOF'
+            "SERVER_APP_DIR='${SERVER_APP_DIR}' SYSTEMD_SERVICE='${SYSTEMD_SERVICE}' NEXTAUTH_SECRET='${NEXTAUTH_SECRET}' NEXTAUTH_URL='${NEXTAUTH_URL}' bash -s" <<'EOF'
           set -euo pipefail
 
           if [ -z "${SYSTEMD_SERVICE:-}" ]; then
             echo "SYSTEMD_SERVICE secret is empty."
             exit 1
           fi
+          if [ -z "${NEXTAUTH_SECRET:-}" ]; then
+            echo "NEXTAUTH_SECRET secret is empty."
+            exit 1
+          fi
 
           export BUN_INSTALL="$HOME/.bun"
           export PATH="$BUN_INSTALL/bin:$PATH"
+          export NEXTAUTH_SECRET
+          export NEXTAUTH_URL="${NEXTAUTH_URL:-https://njutic.cloud}"
 
           cd "$SERVER_APP_DIR"
           if [ ! -f "config.json" ]; then
