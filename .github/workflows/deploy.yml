@@ -79,7 +79,11 @@ jobs:
       - name: Add host key
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -p "${SERVER_PORT:-22}" -H "${SERVER_HOST}" >> ~/.ssh/known_hosts
+          cat > ~/.ssh/known_hosts <<'EOF'
+          146.56.216.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJg4Nm8EsrgYcxuEojBaAhv5pBeui5dlfZwMlB8oD4i7
+          146.56.216.10 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDOG3kWK6de+v3Az365tKaNRFo2o2pUO/qvEw3kn1fxM0KE3cfDdGjb8u8uWehjhjhJL4QaUnFGNB3628Q54PO2g2s/6RZrECUOThAZemch9yxQy7EMUq2cTt+C8VhDEDQPZWGszV0RhlttyoPIQtuBKcz5wCgKcWsij5tfXDdkPRIJVL5aicsFUZP1qYUfGoOHmeEl9yqiXZT7pfKbjR9mEogoCAwNVmAP1dszdbAWZtmafJoFXPixcDYxS8Nv6w2uGtCcVYanLgjXkC/eJUdtIxB5Ut1UqMhQWix77pDNwN74HCGbWfKYNoEnm4pu+MnodBsNMskA2PQoksGvmrsSL0N0Bu02oXvkD60bHGzyEo6eXh/OfdQMj1gwT25gGPw7oElemJPD0OAeAY4G/tSGZGINkg6B0iFN1hmpLJToi04bRR1RwK9A9en0LSbWrxjZN2OOPvyo1yez0GxqwNXVnjCsPoi6B5qNicSPqMmn54EPFW385zzeYxGF7iYfYVM=
+          146.56.216.10 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBMJulL3Pprw2wQ62MJywubOdAARgnf+Q3l82rYy7lBkaSeVptXcNzLYiAjXWOURwDeD1dvZcFYYQlIxk/I3UMxg=
+          EOF
 
       - name: Sync files to server
         run: |
