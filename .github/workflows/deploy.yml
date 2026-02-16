@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feat/github-action
   workflow_dispatch:
 
 concurrency:
@@ -13,7 +12,7 @@ concurrency:
 
 jobs:
   ci:
-    name: Lint
+    name: Lint and Build
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,14 +26,36 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Prepare config for CI build
+        run: cp config.example.json config.json
+
+      - name: Prepare env for CI build
+        env:
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+        run: |
+          if [ -z "${NEXTAUTH_SECRET:-}" ]; then
+            echo "Missing required GitHub secret: NEXTAUTH_SECRET"
+            exit 1
+          fi
+
+          CI_NEXTAUTH_URL="${NEXTAUTH_URL:-https://njutic.cloud}"
+          cat > .env.local <<EOF
+          NEXTAUTH_URL=${CI_NEXTAUTH_URL}
+          NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+          EOF
+
       - name: Lint
         run: bun run lint
+
+      - name: Build
+        run: bun run build
 
   deploy:
     name: Deploy to Linux Server
     runs-on: ubuntu-latest
     needs: ci
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/github-action'
+    if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
     env:
@@ -69,7 +90,7 @@ jobs:
             -e "ssh -p ${SERVER_PORT:-22}" \
             ./ "${SERVER_USER}@${SERVER_HOST}:${SERVER_APP_DIR}"
 
-      - name: Install and restart service
+      - name: Install, build and restart service
         run: |
           ssh -p "${SERVER_PORT:-22}" "${SERVER_USER}@${SERVER_HOST}" \
             "SERVER_APP_DIR='${SERVER_APP_DIR}' SYSTEMD_SERVICE='${SYSTEMD_SERVICE}' bash -s" <<'EOF'
@@ -84,8 +105,14 @@ jobs:
           export PATH="$BUN_INSTALL/bin:$PATH"
 
           cd "$SERVER_APP_DIR"
+          if [ ! -f "config.json" ]; then
+            echo "Missing config.json in $SERVER_APP_DIR"
+            exit 1
+          fi
+
           mkdir -p public/uploads
           bun install --frozen-lockfile
+          bun run build
 
           sudo systemctl daemon-reload
 
