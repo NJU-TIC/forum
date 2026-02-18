@@ -25,6 +25,17 @@ import {
 import { cn } from "@/lib/utils";
 import { useEffect } from "react";
 
+type MarkdownStorage = {
+  markdown?: {
+    getMarkdown?: () => string;
+  };
+};
+
+function readMarkdown(storage: unknown): string {
+  const markdownStorage = storage as MarkdownStorage;
+  return markdownStorage.markdown?.getMarkdown?.() ?? "";
+}
+
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -52,7 +63,7 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
     content: value,
     editable: !disabled,
     onUpdate: ({ editor }) => {
-      onChange((editor.storage as any).markdown.getMarkdown());
+      onChange(readMarkdown(editor.storage));
     },
     editorProps: {
       attributes: {
@@ -64,7 +75,7 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
 
   // Sync external value changes (optional, mostly for initial load or external reset)
   useEffect(() => {
-    if (editor && value !== editor.storage.markdown.getMarkdown()) {
+    if (editor && value !== readMarkdown(editor.storage)) {
        // Check if the difference is significant to avoid cursor jumps
        // For now, we only set if it's completely different or empty
        // But actually, we should be careful. 

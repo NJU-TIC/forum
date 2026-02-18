@@ -1,17 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { QUser } from "@/schema/user";
-import { QPost } from "@/schema/post";
+import { SUser } from "@/schema/user";
+import { SPost } from "@/schema/post";
 import { PostCard } from "@/components/posts/PostCard";
 import { User, Calendar, FileText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { UsernameForm } from "./UsernameForm";
 
 interface ProfilePageProps {
-  user: QUser & { _id: string };
-  posts: QPost[];
+  user: SUser;
+  posts: SPost[];
 }
+
+const profileDateFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  timeZone: "UTC",
+});
 
 export function ProfilePage({ user, posts }: ProfilePageProps) {
   // Track display name for header and modal visibility for editing.
@@ -42,7 +49,9 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
           <div className="flex items-center gap-2 text-gray-600">
             <Calendar className="w-4 h-4" />
-            <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+            <span>
+              Joined {profileDateFormatter.format(new Date(user.createdAt))}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
             <FileText className="w-4 h-4" />
@@ -75,11 +84,13 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
             {posts.map((post) => (
               <PostCard
                 key={post._id}
-                post={{
-                  ...post,
-                  author: user,
-                  createdAt: new Date(post.createdAt),
-                }}
+                post={
+                  {
+                    ...post,
+                    author: user,
+                    createdAt: new Date(post.createdAt),
+                  } as SPost & { author: SUser; createdAt: Date }
+                }
               />
             ))}
           </div>

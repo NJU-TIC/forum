@@ -10,6 +10,13 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { dark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { PostInteractions } from "./PostInteractions";
 
+const cardDateFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
 interface PostCardProps {
   post: SPost & {
     author: SUser;
@@ -45,7 +52,7 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
             </p>
           </div>
           <div className="text-sm text-gray-400">
-            {post.createdAt.toLocaleDateString()}
+            {cardDateFormatter.format(new Date(post.createdAt))}
           </div>
         </div>
 

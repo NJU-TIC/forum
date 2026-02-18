@@ -2,13 +2,13 @@
 
 import { useState, useMemo } from "react";
 import { PostCard } from "@/components/posts/PostCard";
-import { QPost } from "@/schema/post";
-import { QUser } from "@/schema/user";
+import { SPost } from "@/schema/post";
+import { SUser } from "@/schema/user";
 import { Search, Filter } from "lucide-react";
 
 interface SearchPostsProps {
-  posts: (QPost & {
-    author: QUser;
+  posts: (SPost & {
+    author: SUser;
     createdAt: Date;
   })[];
 }

@@ -5,8 +5,8 @@ import {
 } from "@/lib/db";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/app/actions/auth";
-import { PostComment as OriginalPostComment, QPost } from "@/schema/post";
-import { QUser } from "@/schema/user";
+import { PostComment as OriginalPostComment, SPost } from "@/schema/post";
+import { SUser } from "@/schema/user";
 import { PostDetail } from "@/components/posts/PostDetail"; // Keep this import
 
 interface PostPageProps {
@@ -14,11 +14,11 @@ interface PostPageProps {
 }
 
 type PopulatedPostComment = Omit<OriginalPostComment, "author"> & {
-  author: QUser | null;
+  author: SUser | null;
 };
 
-type PopulatedQPost = Omit<QPost, "author" | "interactions"> & {
-  author: QUser;
+type PopulatedQPost = Omit<SPost, "author" | "interactions"> & {
+  author: SUser;
   interactions: {
     comments: PopulatedPostComment[];
     likes: string[];

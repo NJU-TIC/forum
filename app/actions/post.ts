@@ -16,7 +16,7 @@ import path from "path";
 import crypto from "crypto";
 import { fileTypeFromBuffer } from "file-type";
 import { Result } from "@/types/common/result";
-import { PostComment, QPost, SPost } from "@/schema/post";
+import { PostComment, SPost } from "@/schema/post";
 import { SUser } from "@/schema/user";
 
 const ALLOWED_IMAGE_MIME = [
@@ -25,16 +25,21 @@ const ALLOWED_IMAGE_MIME = [
   "image/webp",
   "image/gif",
 ];
-const ALLOWED_IMAGE_EXT = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
 
 // Helper function to validate form data
 function validatePostFormData(
   formData: FormData,
-): Result<{ title: string; content: string; imageFile: File | null }> {
+): Result<{
+  title: string;
+  content: string;
+  imageFile: File | null;
+  removeImage: boolean;
+}> {
   const title = formData.get("title") as string;
   const content = formData.get("content") as string;
   const imageFile = formData.get("image") as File | null;
+  const removeImage = formData.get("removeImage") === "1";
 
   // Basic validation
   if (!title || !content) {
@@ -47,7 +52,7 @@ function validatePostFormData(
 
   return {
     success: true,
-    data: { title, content, imageFile: imageFile },
+    data: { title, content, imageFile, removeImage },
   };
 }
 
@@ -66,7 +71,6 @@ async function processImageUpload(
     };
   }
 
-  const ext = (path.extname(imageFile.name) || "").toLowerCase();
   const buffer = Buffer.from(await imageFile.arrayBuffer());
   const fileType = await fileTypeFromBuffer(buffer);
 
@@ -74,6 +78,7 @@ async function processImageUpload(
     return { success: false, error: "Invalid image content type" };
   }
 
+  const ext = `.${fileType.ext.toLowerCase()}`;
   const filename = `${crypto.randomUUID()}${ext}`;
   const uploadDir = path.join(process.cwd(), "public", "uploads");
   await fs.mkdir(uploadDir, { recursive: true });
@@ -81,6 +86,27 @@ async function processImageUpload(
   await fs.writeFile(filePath, buffer);
 
   return { success: true, data: `/uploads/${filename}` };
+}
+
+async function cleanupUploadedFiles(imagePaths: string[]): Promise<void> {
+  if (!imagePaths.length) return;
+
+  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  await Promise.all(
+    imagePaths.map(async (imagePath) => {
+      if (!imagePath.startsWith("/uploads/")) return;
+
+      const filename = path.basename(imagePath);
+      const filePath = path.join(uploadDir, filename);
+      try {
+        await fs.unlink(filePath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+          console.error("Failed to delete uploaded image:", filePath, error);
+        }
+      }
+    }),
+  );
 }
 
 // Create a new post; handles optional image upload to public/uploads.
@@ -240,26 +266,38 @@ export async function updatePostAction(
     return { success: false, error: validation.error };
   }
 
-  const { title, content, imageFile } = validation.data;
+  const { title, content, imageFile, removeImage } = validation.data;
+  const existingImages = Array.isArray(existing.body.images)
+    ? existing.body.images
+    : [];
 
-  // Process image upload
-  const imageResult = await processImageUpload(imageFile);
-  if (!imageResult.success) {
-    return { success: false, error: imageResult.error };
+  let nextImages = existingImages;
+  if (imageFile) {
+    const imageResult = await processImageUpload(imageFile);
+    if (!imageResult.success) {
+      return { success: false, error: imageResult.error };
+    }
+    nextImages = imageResult.data ? [imageResult.data] : [];
+  } else if (removeImage) {
+    nextImages = [];
   }
 
   const updateResult = await updatePostContent(postId, {
     title: title.trim(),
     content: content.trim(),
-    images: imageResult.data
-      ? [imageResult.data]
-      : Array.isArray(existing.body.images)
-        ? existing.body.images
-        : [],
+    images: nextImages,
   });
 
   if (!updateResult.success) {
     return { success: false, error: updateResult.error };
+  }
+
+  const shouldCleanupOldImages = Boolean(imageFile) || removeImage;
+  if (shouldCleanupOldImages) {
+    const imagesToDelete = existingImages.filter(
+      (imagePath) => !nextImages.includes(imagePath),
+    );
+    await cleanupUploadedFiles(imagesToDelete);
   }
 
   return { success: true, data: { post: updateResult.data } };

@@ -1,7 +1,7 @@
 "use client";
 import { Card } from "@/components/ui/card";
-import { QPost, PostComment as OriginalPostComment } from "@/schema/post";
-import { QUser } from "@/schema/user";
+import { SPost, PostComment as OriginalPostComment } from "@/schema/post";
+import { SUser } from "@/schema/user";
 import { useState } from "react";
 import { addCommentAction } from "@/app/actions/post";
 import Markdown from "react-markdown";
@@ -10,12 +10,19 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { dark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { PostInteractions } from "./PostInteractions";
 
+const detailDateFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
 type PopulatedPostComment = Omit<OriginalPostComment, "author"> & {
-  author: QUser | null;
+  author: SUser | null;
 };
 
-type PopulatedQPost = Omit<QPost, "author" | "interactions"> & {
-  author: QUser;
+type PopulatedQPost = Omit<SPost, "author" | "interactions"> & {
+  author: SUser;
   interactions: {
     comments: PopulatedPostComment[];
     likes: string[];
@@ -70,11 +77,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
               </p>
             </div>
             <div className="text-sm text-gray-400">
-              {new Date(post.createdAt).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })}
+              {detailDateFormatter.format(new Date(post.createdAt))}
             </div>
           </div>
 
@@ -210,14 +213,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
                   </span>
                   <span className="text-xs text-gray-500">
                     {comment.createdAt
-                      ? new Date(comment.createdAt).toLocaleDateString(
-                          "en-US",
-                          {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          },
-                        )
+                      ? detailDateFormatter.format(new Date(comment.createdAt))
                       : ""}
                   </span>
                 </div>
@@ -231,7 +227,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
   );
 }
 
-function getCommentAuthorDisplay(author: QUser | null) {
+function getCommentAuthorDisplay(author: SUser | null) {
   if (!author) {
     return "Unknown";
   }

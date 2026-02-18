@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import { verifyUserAction } from "@/app/actions/auth";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -11,24 +11,46 @@ export default function VerifyPage() {
   const [status, setStatus] = useState<"loading" | "success" | "error">(
     "loading",
   );
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("Verification failed.");
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error");
-      setErrorMessage("Invalid verification link.");
-      return;
-    }
+    if (!token) return;
 
-    verifyUserAction(token).then((result) => {
-      if (result.success) {
-        setStatus("success");
-      } else {
+    let cancelled = false;
+
+    verifyUserAction(token)
+      .then((result) => {
+        if (cancelled) return;
+
+        if (result.success) {
+          setStatus("success");
+          return;
+        }
+
         setStatus("error");
         setErrorMessage(result.error || "Verification failed.");
-      }
-    });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStatus("error");
+        setErrorMessage("Verification request failed. Please try again.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
+
+  if (!token) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="text-red-500">Invalid verification link.</div>
+        <Link href="/signup" className="mt-4 text-blue-500 hover:underline">
+          Go to Signup
+        </Link>
+      </div>
+    );
+  }
 
   if (status === "loading") {
     return (
