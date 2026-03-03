@@ -93,6 +93,23 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
     return null;
   }
 
+  const editorContentClass = cn(
+    "flex-1 overflow-y-auto",
+    "[&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:outline-none [&_.ProseMirror]:text-foreground",
+    "[&_.ProseMirror_p]:mb-4 [&_.ProseMirror_p]:leading-relaxed",
+    "[&_.ProseMirror_h1]:mb-4 [&_.ProseMirror_h1]:text-2xl [&_.ProseMirror_h1]:font-bold",
+    "[&_.ProseMirror_h2]:mb-3 [&_.ProseMirror_h2]:text-xl [&_.ProseMirror_h2]:font-bold",
+    "[&_.ProseMirror_h3]:mb-2 [&_.ProseMirror_h3]:text-lg [&_.ProseMirror_h3]:font-bold",
+    "[&_.ProseMirror_ul]:mb-4 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-5",
+    "[&_.ProseMirror_ol]:mb-4 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-5",
+    "[&_.ProseMirror_blockquote]:border-l-4 [&_.ProseMirror_blockquote]:border-border [&_.ProseMirror_blockquote]:pl-4 [&_.ProseMirror_blockquote]:italic [&_.ProseMirror_blockquote]:text-muted-foreground",
+    "[&_.ProseMirror_pre]:my-4 [&_.ProseMirror_pre]:overflow-x-auto [&_.ProseMirror_pre]:rounded-md [&_.ProseMirror_pre]:border [&_.ProseMirror_pre]:border-border [&_.ProseMirror_pre]:bg-muted [&_.ProseMirror_pre]:px-4 [&_.ProseMirror_pre]:py-3 [&_.ProseMirror_pre]:text-foreground",
+    "[&_.ProseMirror_pre_code]:bg-transparent [&_.ProseMirror_pre_code]:p-0 [&_.ProseMirror_pre_code]:font-mono [&_.ProseMirror_pre_code]:text-[0.8125rem] [&_.ProseMirror_pre_code]:leading-[1.5] [&_.ProseMirror_pre_code]:whitespace-pre-wrap [&_.ProseMirror_pre_code]:break-words",
+    "[&_.ProseMirror_code]:font-mono [&_.ProseMirror_p_code]:text-[0.85em] [&_.ProseMirror_p_code]:rounded [&_.ProseMirror_p_code]:bg-muted [&_.ProseMirror_p_code]:px-1.5 [&_.ProseMirror_p_code]:py-0.5",
+    "[&_.ProseMirror_img]:max-w-full [&_.ProseMirror_img]:rounded-lg",
+    "[&_.ProseMirror_a]:text-[#2563EB] [&_.ProseMirror_a]:underline [&_.ProseMirror_a]:underline-offset-2 [&_.ProseMirror_a:hover]:text-[#1D4ED8]",
+  );
+
   const addImage = () => {
     const url = window.prompt("URL");
     if (url) {
@@ -115,14 +132,36 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
       return;
     }
 
+    const { from, to, empty } = editor.state.selection;
+
+    if (empty) {
+      const end = from + url.length;
+      editor
+        .chain()
+        .focus()
+        .setLink({ href: url })
+        .insertContent(url)
+        .setTextSelection(end)
+        .unsetMark("link")
+        .run();
+      return;
+    }
+
     // update
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+    editor
+      .chain()
+      .focus()
+      .extendMarkRange("link")
+      .setLink({ href: url })
+      .setTextSelection(to)
+      .unsetMark("link")
+      .run();
   };
 
   return (
-    <div className="border border-gray-300 rounded-lg overflow-hidden bg-white flex flex-col min-h-[500px]">
+    <div className="border border-border rounded-lg overflow-hidden bg-card text-card-foreground flex flex-col min-h-[500px]">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-1 px-2 py-2 border-b border-gray-200 bg-gray-50">
+      <div className="flex flex-wrap items-center gap-1 px-2 py-2 border-b border-border bg-muted/40">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           disabled={!editor.can().chain().focus().toggleBold().run() || disabled}
@@ -145,7 +184,7 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
           tooltip="Strikethrough"
         />
         
-        <div className="w-px h-4 bg-gray-300 mx-1" />
+        <div className="w-px h-4 bg-border mx-1" />
 
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -169,7 +208,7 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
           disabled={disabled}
         />
 
-        <div className="w-px h-4 bg-gray-300 mx-1" />
+        <div className="w-px h-4 bg-border mx-1" />
 
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -186,7 +225,7 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
           disabled={disabled}
         />
 
-        <div className="w-px h-4 bg-gray-300 mx-1" />
+        <div className="w-px h-4 bg-border mx-1" />
 
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
@@ -209,7 +248,7 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
           disabled={disabled}
         />
 
-        <div className="w-px h-4 bg-gray-300 mx-1" />
+        <div className="w-px h-4 bg-border mx-1" />
 
         <ToolbarButton
           onClick={setLink}
@@ -244,7 +283,7 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
       {/* Editor Content */}
       <EditorContent 
         editor={editor} 
-        className="flex-1 overflow-y-auto [&_.ProseMirror]:min-h-[400px] [&_.ProseMirror]:outline-none [&_.ProseMirror_p]:mb-4 [&_.ProseMirror_p]:leading-relaxed [&_.ProseMirror_h1]:text-2xl [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h1]:mb-4 [&_.ProseMirror_h2]:text-xl [&_.ProseMirror_h2]:font-bold [&_.ProseMirror_h2]:mb-3 [&_.ProseMirror_h3]:text-lg [&_.ProseMirror_h3]:font-bold [&_.ProseMirror_h3]:mb-2 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-5 [&_.ProseMirror_ul]:mb-4 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-5 [&_.ProseMirror_ol]:mb-4 [&_.ProseMirror_blockquote]:border-l-4 [&_.ProseMirror_blockquote]:border-gray-300 [&_.ProseMirror_blockquote]:pl-4 [&_.ProseMirror_blockquote]:italic [&_.ProseMirror_blockquote]:text-gray-600 [&_.ProseMirror_pre]:bg-gray-900 [&_.ProseMirror_pre]:text-white [&_.ProseMirror_pre]:p-4 [&_.ProseMirror_pre]:rounded-lg [&_.ProseMirror_pre]:mb-4 [&_.ProseMirror_img]:rounded-lg [&_.ProseMirror_img]:max-w-full [&_.ProseMirror_a]:text-blue-600 [&_.ProseMirror_a]:underline"
+        className={editorContentClass}
       />
     </div>
   );
@@ -270,10 +309,10 @@ function ToolbarButton({
       disabled={disabled}
       title={tooltip}
       className={cn(
-        "p-1.5 rounded transition-colors",
+        "inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
         isActive
-          ? "bg-blue-100 text-blue-700"
-          : "text-gray-600 hover:bg-gray-200 hover:text-black",
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
         "disabled:opacity-50 disabled:cursor-not-allowed"
       )}
     >
