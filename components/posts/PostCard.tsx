@@ -5,8 +5,10 @@ import { SPost } from "@/schema/post";
 import { SUser } from "@/schema/user";
 import { useRouter } from "next/navigation";
 import Markdown from "react-markdown";
+import { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { postMarkdownComponents } from "./markdown-renderers";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { PostInteractions } from "./PostInteractions";
 
 const cardDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -15,6 +17,93 @@ const cardDateFormatter = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   timeZone: "UTC",
 });
+
+const postMarkdownComponents: Components = {
+  h1: ({ children }) => (
+    <h1 className="scroll-m-20 text-4xl font-bold tracking-tight">{children}</h1>
+  ),
+
+  h2: ({ children }) => (
+    <h2 className="scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight">
+      {children}
+    </h2>
+  ),
+
+  p: ({ children }) => (
+    <p className="leading-7 [&:not(:first-child)]:mt-6">{children}</p>
+  ),
+
+  ul: ({ children }) => <ul className="my-6 ml-6 list-disc">{children}</ul>,
+
+  a: ({ href, children }) => {
+    const isExternal = !!href && /^https?:\/\//i.test(href);
+    return (
+      <a
+        href={href}
+        className="text-[#2563EB] underline underline-offset-2 hover:text-[#1D4ED8] break-all"
+        target={isExternal ? "_blank" : undefined}
+        rel={isExternal ? "noopener noreferrer" : undefined}
+      >
+        {children}
+      </a>
+    );
+  },
+
+  code(props) {
+    const { children, className, ...rest } = props;
+    const content = String(children).replace(/\n$/, "");
+    const language = /language-([A-Za-z0-9_+-]+)/.exec(className || "")?.[1] ?? "text";
+    const isInline = !className && !content.includes("\n");
+
+    if (isInline) {
+      return (
+        <code
+          {...rest}
+          className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em]"
+        >
+          {children}
+        </code>
+      );
+    }
+
+    return (
+      <div className="my-4 overflow-x-auto rounded-md border bg-muted px-4 py-3">
+        <SyntaxHighlighter
+          PreTag="div"
+          language={language}
+          style={oneLight}
+          customStyle={{
+            margin: 0,
+            padding: 0,
+            background: "transparent",
+            fontSize: "0.8125rem",
+            lineHeight: "1.5",
+          }}
+          codeTagProps={{ className: "font-mono" }}
+          wrapLongLines
+        >
+          {content}
+        </SyntaxHighlighter>
+      </div>
+    );
+  },
+
+  blockquote: ({ children }) => (
+    <blockquote className="mt-6 border-l-2 pl-6 italic">{children}</blockquote>
+  ),
+
+  table: ({ children }) => (
+    <div className="my-6 w-full overflow-x-auto rounded-md border">
+      <table className="w-full text-sm">{children}</table>
+    </div>
+  ),
+
+  th: ({ children }) => (
+    <th className="border px-3 py-2 text-left font-semibold">{children}</th>
+  ),
+
+  td: ({ children }) => <td className="border px-3 py-2 align-top">{children}</td>,
+};
 
 interface PostCardProps {
   post: SPost & {
