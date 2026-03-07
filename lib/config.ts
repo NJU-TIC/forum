@@ -10,19 +10,18 @@ export interface Config {
   mongoDbUri: string;
 }
 
-let configFile: Config;
+let configFile: Partial<Config> = {};
 try {
   const fileContent = fs.readFileSync(configPath, "utf-8");
   configFile = JSON.parse(fileContent) as Config;
-} catch (error) {
-  console.error(`Error loading config from ${configPath}:`, error);
-  throw new Error(
-    "Failed to load config.json. Please ensure it exists in the root directory.",
-  );
+} catch {
+  // config.json not found, will fall back to environment variables
 }
 
 export const config: Config = {
-  resendApiKey: configFile.resendApiKey,
-  allowedEmailSuffixes: configFile.allowedEmailSuffixes,
-  mongoDbUri: configFile.mongoDbUri,
+  resendApiKey: configFile.resendApiKey || process.env.RESEND_API_KEY || "",
+  allowedEmailSuffixes:
+    configFile.allowedEmailSuffixes ||
+    (process.env.ALLOWED_EMAIL_SUFFIXES?.split(",") ?? []),
+  mongoDbUri: configFile.mongoDbUri || process.env.MONGODB_URI || "",
 };
