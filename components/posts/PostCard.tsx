@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { SPost } from "@/schema/post";
 import { SUser } from "@/schema/user";
@@ -19,6 +20,15 @@ interface PostCardProps {
 
 export function PostCard({ post, currentUserId }: PostCardProps) {
   const router = useRouter();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (el) {
+      setIsOverflowing(el.scrollHeight > el.clientHeight);
+    }
+  }, [post.body.content]);
 
   return (
     <Card
@@ -33,7 +43,22 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
           dateFormatter={cardDateFormatter}
         />
 
-        <MarkdownRenderer content={post.body.content} />
+        <div
+          ref={contentRef}
+          className="max-h-[50vh] overflow-hidden"
+          style={
+            isOverflowing
+              ? {
+                  maskImage:
+                    "linear-gradient(to bottom, black calc(100% - 5rem), transparent 100%)",
+                  WebkitMaskImage:
+                    "linear-gradient(to bottom, black calc(100% - 5rem), transparent 100%)",
+                }
+              : undefined
+          }
+        >
+          <MarkdownRenderer content={post.body.content} />
+        </div>
 
         <PostInteractions
           postId={post._id}
