@@ -70,8 +70,12 @@ export default async function HomePage() {
         </div>
       ) : (
         <div>
-          {posts.map((post) => (
-            <PostCard key={post._id} post={post} currentUserId={currentUser?.id} />
+          {posts.reverse().map((post) => (
+            <PostCard
+              key={post._id}
+              post={post}
+              currentUserId={currentUser?.id}
+            />
           ))}
         </div>
       )}
