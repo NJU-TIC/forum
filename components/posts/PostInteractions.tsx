@@ -76,7 +76,7 @@ export function PostInteractions({
         className={`flex items-center space-x-1 transition-colors ${liked ? "text-red-500" : "hover:text-red-500"} disabled:opacity-50`}
       >
         <Heart className={`h-4 w-4 ${likeLoading ? "animate-pulse" : ""} ${liked ? "fill-current" : ""}`} />
-        <span>{likes} likes</span>
+        <span>{likes} 点赞</span>
       </button>
 
       <button
@@ -88,7 +88,7 @@ export function PostInteractions({
         className={`flex items-center space-x-1 transition-colors ${forwarded ? "text-blue-500" : "hover:text-blue-500"} disabled:opacity-50`}
       >
         <Share2 className={`h-4 w-4 ${forwardLoading ? "animate-pulse" : ""} ${forwarded ? "fill-current" : ""}`} />
-        <span>{forwards} forwards</span>
+        <span>{forwards} 转发</span>
       </button>
 
       {onCommentClick ? (
@@ -100,12 +100,12 @@ export function PostInteractions({
           className="flex items-center space-x-1 hover:text-green-500 transition-colors"
         >
           <MessageCircle className="h-4 w-4" />
-          <span>{commentsCount} comments</span>
+          <span>{commentsCount} 评论</span>
         </button>
       ) : (
         <div className="flex items-center space-x-1">
           <MessageCircle className="h-4 w-4" />
-          <span>{commentsCount} comments</span>
+          <span>{commentsCount} 评论</span>
         </div>
       )}
 
@@ -115,7 +115,7 @@ export function PostInteractions({
           className="text-blue-600 hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
-          Edit post
+          编辑帖子
         </a>
       )}
     </div>
