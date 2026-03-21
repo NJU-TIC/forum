@@ -31,7 +31,7 @@ export function EditPostForm({
       initialTitle={initialTitle}
       initialContent={initialContent}
       initialImages={initialImages}
-      buttonText="Save changes"
+      buttonText="保存修改"
       onSuccess={handleSuccess}
     />
   );
