@@ -22,7 +22,7 @@ export function UsernameForm({ initialName, onSuccess }: UsernameFormProps) {
         return;
       }
       if (result?.success && result.name) {
-        setMessage("Username updated");
+        setMessage("用户名已更新");
         setUsername(result.name);
         // Notify parent so it can sync UI or close dialog.
         onSuccess?.(result.name);
@@ -34,7 +34,7 @@ export function UsernameForm({ initialName, onSuccess }: UsernameFormProps) {
     <form action={handleSubmit} className="space-y-3">
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-gray-700" htmlFor="username">
-          Username
+          用户名
         </label>
         <input
           id="username"
@@ -42,7 +42,7 @@ export function UsernameForm({ initialName, onSuccess }: UsernameFormProps) {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           className="border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Enter new username"
+          placeholder="请输入新的用户名"
           disabled={isPending}
         />
       </div>
@@ -52,7 +52,7 @@ export function UsernameForm({ initialName, onSuccess }: UsernameFormProps) {
           disabled={isPending}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          {isPending ? "Saving..." : "Save username"}
+          {isPending ? "保存中..." : "保存用户名"}
         </button>
         {message && <span className="text-sm text-gray-600">{message}</span>}
       </div>
