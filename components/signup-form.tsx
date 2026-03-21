@@ -36,12 +36,12 @@ export function SignupForm({
     const result = await action(formData);
 
     if (!result.success) {
-      toast.error("Registration failed", {
+      toast.error("注册失败", {
         description: result.error,
       });
     } else {
       if (result.data.message) {
-        toast.success("Registration successful", {
+        toast.success("注册成功", {
           description: result.data.message,
         });
       }
@@ -55,8 +55,8 @@ export function SignupForm({
         });
 
         if (signInResult?.error) {
-          toast.error("Sign-in failed", {
-            description: "Account created but sign-in failed. Please try signing in manually.",
+          toast.error("登录失败", {
+            description: "账号已创建，但自动登录失败。请尝试手动登录。",
           });
         }
         router.push("/");
@@ -76,16 +76,16 @@ export function SignupForm({
   return (
     <Card {...props}>
       <CardHeader>
-        <CardTitle>Create an account</CardTitle>
+        <CardTitle>创建账号</CardTitle>
         <CardDescription>
-          Enter your information below to create your account
+          在下方输入您的信息以创建账号。
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={handleAction}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="username">Username</FieldLabel>
+              <FieldLabel htmlFor="username">用户名</FieldLabel>
               <Input
                 id="username"
                 name="username"
@@ -94,11 +94,11 @@ export function SignupForm({
                 required
               />
               <FieldDescription>
-                Your unique username for the forum.
+                您在论坛中的唯一用户名。
               </FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <FieldLabel htmlFor="email">电子邮箱</FieldLabel>
               <Input
                 id="email"
                 name="email"
@@ -107,24 +107,23 @@ export function SignupForm({
                 required
               />
               <FieldDescription>
-                We&apos;ll use this to contact you. We will not share your email
-                with anyone else.
+                我们将通过此邮箱与您联系。我们不会将您的邮箱分享给任何人。
               </FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <FieldLabel htmlFor="password">密码</FieldLabel>
               <Input id="password" name="password" type="password" required />
               <FieldDescription>
-                Must be at least 8 characters long.
+                长度至少为8个字符。
               </FieldDescription>
             </Field>
             <FieldGroup>
               <Field>
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Creating Account..." : "Create Account"}
+                  {isLoading ? "正在创建···" : "创建账号"}
                 </Button>
                 <FieldDescription className="px-6 text-center">
-                  Already have an account? <a href="/login">Sign in</a>
+                  已有帐号？ <a href="/login">立即登录</a>
                 </FieldDescription>
               </Field>
             </FieldGroup>
