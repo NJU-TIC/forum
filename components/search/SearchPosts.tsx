@@ -57,7 +57,7 @@ export function SearchPosts({ posts }: SearchPostsProps) {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <input
               type="text"
-              placeholder="Search posts by title, content, or author..."
+              placeholder="搜索标题、内容或作者..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -71,9 +71,9 @@ export function SearchPosts({ posts }: SearchPostsProps) {
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="mostLiked">Most Liked</option>
+              <option value="newest">最新发布</option>
+              <option value="oldest">最早发布</option>
+              <option value="mostLiked">最多点赞</option>
             </select>
           </div>
         </div>
@@ -81,9 +81,8 @@ export function SearchPosts({ posts }: SearchPostsProps) {
 
       {/* Results Count */}
       <div className="text-sm text-gray-600">
-        Found {filteredAndSortedPosts.length} post
-        {filteredAndSortedPosts.length !== 1 ? "s" : ""}
-        {searchTerm && ` matching "${searchTerm}"`}
+        共找到 {filteredAndSortedPosts.length} 篇帖子
+        {searchTerm && ` 符合关键词 "${searchTerm}"`}
       </div>
 
       {/* Posts List */}
@@ -91,12 +90,12 @@ export function SearchPosts({ posts }: SearchPostsProps) {
         <div className="text-center py-12">
           <Search className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No posts found
+            未找到相关帖子
           </h3>
           <p className="text-gray-500">
             {searchTerm
-              ? "Try adjusting your search terms or browse all posts"
-              : "No posts available yet"}
+              ? "尝试调整关键词或浏览所有帖子"
+              : "暂无可用帖子"}
           </p>
         </div>
       ) : (
