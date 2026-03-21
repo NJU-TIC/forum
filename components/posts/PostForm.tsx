@@ -78,7 +78,7 @@ export function PostForm({
           htmlFor="title"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Title
+          标题
         </label>
         <input
           id="title"
@@ -86,7 +86,7 @@ export function PostForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="Enter your post title..."
+          placeholder="输入帖子标题..."
           required
           disabled={isSaving}
         />
@@ -97,7 +97,7 @@ export function PostForm({
           htmlFor="content"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Content
+          正文
         </label>
         <MarkdownEditor
           value={content}
@@ -111,7 +111,7 @@ export function PostForm({
           htmlFor="image"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Cover Image (optional)
+          封面图 (可选)
         </label>
         <input
           id="image"
@@ -128,7 +128,7 @@ export function PostForm({
         />
         {currentImage && (
           <div className="mt-3">
-            <p className="text-sm text-gray-600 mb-2">Current/Preview image:</p>
+            <p className="text-sm text-gray-600 mb-2">当前/预览图片：</p>
             <img
               src={currentImage}
               alt="Preview"
@@ -147,7 +147,7 @@ export function PostForm({
               disabled={isSaving}
               className="mt-3 px-3 py-2 text-sm bg-red-50 text-red-700 border border-red-200 rounded-md hover:bg-red-100 disabled:opacity-50"
             >
-              Remove image
+              移除图片
             </button>
           </div>
         )}
@@ -159,14 +159,14 @@ export function PostForm({
           disabled={isSaving}
           className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isSaving ? "Saving..." : buttonText}
+          {isSaving ? "保存中..." : buttonText}
         </button>
         <button
           type="button"
           onClick={() => window.history.back()}
           className="px-6 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
         >
-          Cancel
+          取消
         </button>
       </div>
     </form>
