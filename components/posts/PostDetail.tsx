@@ -104,7 +104,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
       </Card>
 
       <Card className="p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Comments</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">评论</h2>
 
         <form onSubmit={handleAddComment} className="mb-6">
           <div className="flex gap-3">
@@ -112,7 +112,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
               type="text"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a comment..."
+              placeholder="说点什么吧..."
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isAddingComment}
             />
@@ -121,7 +121,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
               disabled={isAddingComment || !newComment.trim()}
               className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isAddingComment ? "Adding..." : "Add Comment"}
+              {isAddingComment ? "发送中..." : "发表评论"}
             </button>
           </div>
         </form>
@@ -129,7 +129,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
         <div className="space-y-4">
           {comments.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
-              No comments yet. Be the first to comment!
+              暂无评论。来发表第一条评论吧！
             </p>
           ) : (
             comments.map((comment, index) => (
@@ -156,7 +156,7 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
 
 function getCommentAuthorDisplay(author: SUser | null) {
   if (!author) {
-    return "Unknown";
+    return "未知用户";
   }
   return author.name;
 }
