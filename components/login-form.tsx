@@ -39,7 +39,7 @@ export function LoginForm({
     const result = await action(formData);
 
     if (result.error) {
-      toast.error("Login failed", {
+      toast.error("登录失败", {
         description: result.error,
       });
     } else if (result.success) {
@@ -53,14 +53,14 @@ export function LoginForm({
 
         if (signInResult?.error) {
           // Show the actual error message if available, otherwise a generic one
-          toast.error("Sign-in failed", {
-            description: signInResult.error || "Please try again.",
+          toast.error("登录失败", {
+            description: signInResult.error || "请稍后重试。",
           });
           return;
         }
       }
-      toast.success("Welcome back!", {
-        description: "You have successfully signed in.",
+      toast.success("欢迎回来！", {
+        description: "您已成功登录。",
       });
       router.push("/");
     }
@@ -70,16 +70,16 @@ export function LoginForm({
   return (
     <Card {...props}>
       <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
+        <CardTitle>欢迎回来</CardTitle>
         <CardDescription>
-          Enter your email and password to sign in to your account
+          请输入您的用户名和密码以登录账户。
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={handleAction}>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="username">Username</FieldLabel>
+              <FieldLabel htmlFor="username">用户名</FieldLabel>
               <Input
                 id="username"
                 name="username"
@@ -88,23 +88,23 @@ export function LoginForm({
                 required
               />
               <FieldDescription>
-                Enter the email address associated with your account.
+                请输入您的用户名和密码以登录账户。
               </FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <FieldLabel htmlFor="password">密码</FieldLabel>
               <Input id="password" name="password" type="password" required />
               <FieldDescription>
-                Enter your password to access your account.
+                输入您的密码以访问账户。
               </FieldDescription>
             </Field>
             <FieldGroup>
               <Field>
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign in"}
+                  {isLoading ? "登录中..." : "登录"}
                 </Button>
                 <FieldDescription className="px-6 text-center">
-                  Don&apos;t have an account? <a href="/signup">Sign up</a>
+                  还没有账号？ <a href="/signup">立即注册</a>
                 </FieldDescription>
               </Field>
             </FieldGroup>

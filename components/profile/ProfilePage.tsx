@@ -42,7 +42,7 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
             onClick={() => setShowEditor(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
           >
-            Edit profile
+            编辑个人资料
           </button>
         </div>
 
@@ -50,17 +50,17 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
           <div className="flex items-center gap-2 text-gray-600">
             <Calendar className="w-4 h-4" />
             <span>
-              Joined {profileDateFormatter.format(new Date(user.createdAt))}
+              加入于 {profileDateFormatter.format(new Date(user.createdAt))}
             </span>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
             <FileText className="w-4 h-4" />
-            <span>{posts.length} posts</span>
+            <span>{posts.length} 篇帖子</span>
           </div>
           {user.isAdmin && (
             <div className="flex items-center gap-2">
               <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                Admin
+                管理员
               </span>
             </div>
           )}
@@ -69,14 +69,14 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
 
       {/* User Posts */}
       <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">My Posts</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">我的帖子</h2>
         {posts.length === 0 ? (
           <Card className="p-6 text-center">
             <p className="text-gray-500">
-              You haven&apos;t created any posts yet.
+              你还没有发布过任何帖子。
             </p>
             <p className="text-sm text-gray-400 mt-1">
-              Start by creating your first post!
+              发布你的第一篇帖子开启社区之旅吧！
             </p>
           </Card>
         ) : (
@@ -104,10 +104,10 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">
-                  Edit profile
+                  编辑个人资料
                 </h2>
                 <p className="text-sm text-gray-500">
-                  Update your username and save changes.
+                  更新您的用户名并保存更改。
                 </p>
               </div>
               <button

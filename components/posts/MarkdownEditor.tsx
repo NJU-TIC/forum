@@ -94,7 +94,7 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
   }
 
   const addImage = () => {
-    const url = window.prompt("URL");
+    const url = window.prompt("请输入图片链接 (URL)");
     if (url) {
       editor.chain().focus().setImage({ src: url }).run();
     }
@@ -102,7 +102,7 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
 
   const setLink = () => {
     const previousUrl = editor.getAttributes("link").href;
-    const url = window.prompt("URL", previousUrl);
+    const url = window.prompt("请输入链接地址 (URL)", previousUrl);
 
     // cancelled
     if (url === null) {
@@ -128,21 +128,21 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
           disabled={!editor.can().chain().focus().toggleBold().run() || disabled}
           isActive={editor.isActive("bold")}
           icon={<Bold className="w-4 h-4" />}
-          tooltip="Bold"
+          tooltip="加粗"
         />
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleItalic().run()}
           disabled={!editor.can().chain().focus().toggleItalic().run() || disabled}
           isActive={editor.isActive("italic")}
           icon={<Italic className="w-4 h-4" />}
-          tooltip="Italic"
+          tooltip="斜体"
         />
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleStrike().run()}
           disabled={!editor.can().chain().focus().toggleStrike().run() || disabled}
           isActive={editor.isActive("strike")}
           icon={<Strikethrough className="w-4 h-4" />}
-          tooltip="Strikethrough"
+          tooltip="删除线"
         />
         
         <div className="w-px h-4 bg-gray-300 mx-1" />
@@ -151,21 +151,21 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
           isActive={editor.isActive("heading", { level: 1 })}
           icon={<Heading1 className="w-4 h-4" />}
-          tooltip="Heading 1"
+          tooltip="一级标题"
           disabled={disabled}
         />
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
           isActive={editor.isActive("heading", { level: 2 })}
           icon={<Heading2 className="w-4 h-4" />}
-          tooltip="Heading 2"
+          tooltip="二级标题"
           disabled={disabled}
         />
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
           isActive={editor.isActive("heading", { level: 3 })}
           icon={<Heading3 className="w-4 h-4" />}
-          tooltip="Heading 3"
+          tooltip="三级标题"
           disabled={disabled}
         />
 
@@ -175,14 +175,14 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           isActive={editor.isActive("bulletList")}
           icon={<List className="w-4 h-4" />}
-          tooltip="Bullet List"
+          tooltip="无序列表"
           disabled={disabled}
         />
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           isActive={editor.isActive("orderedList")}
           icon={<ListOrdered className="w-4 h-4" />}
-          tooltip="Ordered List"
+          tooltip="有序列表"
           disabled={disabled}
         />
 
@@ -192,20 +192,20 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
           isActive={editor.isActive("codeBlock")}
           icon={<Code className="w-4 h-4" />}
-          tooltip="Code Block"
+          tooltip="代码块"
           disabled={disabled}
         />
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           isActive={editor.isActive("blockquote")}
           icon={<Quote className="w-4 h-4" />}
-          tooltip="Quote"
+          tooltip="引用"
           disabled={disabled}
         />
         <ToolbarButton
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
           icon={<Minus className="w-4 h-4" />}
-          tooltip="Horizontal Rule"
+          tooltip="分割线"
           disabled={disabled}
         />
 
@@ -215,13 +215,13 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
           onClick={setLink}
           isActive={editor.isActive("link")}
           icon={<LinkIcon className="w-4 h-4" />}
-          tooltip="Link"
+          tooltip="插入链接"
           disabled={disabled}
         />
         <ToolbarButton
           onClick={addImage}
           icon={<ImageIcon className="w-4 h-4" />}
-          tooltip="Image"
+          tooltip="插入图片"
           disabled={disabled}
         />
 
@@ -231,13 +231,13 @@ export function MarkdownEditor({ value, onChange, disabled }: MarkdownEditorProp
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().chain().focus().undo().run() || disabled}
           icon={<Undo className="w-4 h-4" />}
-          tooltip="Undo"
+          tooltip="撤销"
         />
         <ToolbarButton
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().chain().focus().redo().run() || disabled}
           icon={<Redo className="w-4 h-4" />}
-          tooltip="Redo"
+          tooltip="重做"
         />
       </div>
 

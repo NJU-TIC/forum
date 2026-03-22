@@ -64,15 +64,15 @@ const NavigationContent = ({ isMobile = false }: { isMobile?: boolean }) => (
         <div className="border-t border-border/40 my-1"></div>
         <NavLink href="/posts">
           <FileText className="mr-2 h-4 w-4" />
-          Posts
+          帖子
         </NavLink>
         <NavLink href="/write-post">
           <PenSquare className="mr-2 h-4 w-4" />
-          Write Post
+          发帖
         </NavLink>
         <NavLink href="/search">
           <Search className="mr-2 h-4 w-4" />
-          Search
+          搜索
         </NavLink>
       </>
     ) : (
@@ -81,15 +81,15 @@ const NavigationContent = ({ isMobile = false }: { isMobile?: boolean }) => (
         <div className="w-px h-6 bg-border/40 mx-1"></div>
         <NavLink href="/posts">
           <FileText className="mr-2 h-4 w-4" />
-          Posts
+          帖子
         </NavLink>
         <NavLink href="/write-post">
           <PenSquare className="mr-2 h-4 w-4" />
-          Write Post
+          发帖
         </NavLink>
         <NavLink href="/search">
           <Search className="mr-2 h-4 w-4" />
-          Search
+          搜索
         </NavLink>
       </>
     )}
@@ -168,14 +168,14 @@ export function Navbar() {
                 className="text-sm font-medium hover:bg-accent/50"
                 onClick={() => router.push("/login")}
               >
-                Log in
+                登录
               </Button>
               <Button
                 size="sm"
                 className="text-sm font-medium px-4 h-9 rounded-md shadow-sm transition-colors hover:bg-primary/90"
                 onClick={() => router.push("/signup")}
               >
-                Sign up
+                注册
               </Button>
             </>
           ) : (
@@ -193,7 +193,7 @@ export function Navbar() {
                 className="text-sm font-medium hover:bg-accent/50"
                 onClick={() => router.push("/profile")}
               >
-                Profile
+                个人资料
               </Button>
               <Button
                 variant="ghost"
@@ -202,7 +202,7 @@ export function Navbar() {
                 onClick={handleLogout}
               >
                 <LogOut className="h-4 w-4 mr-1" />
-                Log out
+                退出登录
               </Button>
             </>
           )}
@@ -211,3 +211,4 @@ export function Navbar() {
     </header>
   );
 }
+

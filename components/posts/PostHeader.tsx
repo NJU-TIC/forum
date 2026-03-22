@@ -20,10 +20,10 @@ export function PostHeader({
       <div>
         <h3 className={titleClassName}>{title}</h3>
         <p className="text-sm text-gray-500">
-          By {author.name}
+          发布者：{author.name}
           {author.isAdmin && (
             <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-              Admin
+              管理员
             </span>
           )}
         </p>
