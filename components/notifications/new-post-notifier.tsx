@@ -4,164 +4,137 @@ import { useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
-type PostUpdate = {
-  id: string;
-  title: string;
-  authorId: string;
-  authorName: string;
-  createdAt: string;
+type PublicKeyResponse = {
+  enabled: boolean;
+  publicKey: string;
 };
 
-const POLL_INTERVAL_MS = 30_000;
-const REQUEST_LIMIT = 20;
+type SubscribeResponse = {
+  success: boolean;
+  error?: string;
+};
 
-async function fetchPostUpdates(since: string | null): Promise<PostUpdate[]> {
-  const searchParams = new URLSearchParams({
-    limit: REQUEST_LIMIT.toString(),
-  });
+function supportsWebPush(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window &&
+    "Notification" in window &&
+    window.isSecureContext
+  );
+}
 
-  if (since) {
-    searchParams.set("since", since);
-  }
-
-  const response = await fetch(`/api/posts/updates?${searchParams.toString()}`, {
-    cache: "no-store",
-  });
-
+async function fetchPublicKey(): Promise<PublicKeyResponse> {
+  const response = await fetch("/api/push/public-key", { cache: "no-store" });
   if (!response.ok) {
-    throw new Error("Failed to fetch post updates");
+    throw new Error("Failed to load VAPID public key");
   }
 
-  const data: unknown = await response.json();
+  const data = (await response.json()) as unknown;
   if (
     !data ||
     typeof data !== "object" ||
-    !("posts" in data) ||
-    !Array.isArray((data as { posts?: unknown }).posts)
+    typeof (data as { enabled?: unknown }).enabled !== "boolean" ||
+    typeof (data as { publicKey?: unknown }).publicKey !== "string"
   ) {
-    return [];
+    throw new Error("Invalid VAPID public key response");
   }
 
-  return (data as { posts: PostUpdate[] }).posts;
+  return data as PublicKeyResponse;
 }
 
-function supportsWebNotifications(): boolean {
-  return typeof window !== "undefined" && "Notification" in window;
+function base64UrlToUint8Array(base64UrlString: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64UrlString.length % 4)) % 4);
+  const base64 = (base64UrlString + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; i += 1) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+
+  return outputArray;
 }
 
 export function NewPostNotifier() {
   const { data: session, status } = useSession();
-  const knownPostIdsRef = useRef<Set<string>>(new Set());
-  const latestSeenAtRef = useRef<string | null>(null);
-  const initializedRef = useRef(false);
-  const pollErrorToastShownRef = useRef(false);
+  const subscribedUserIdRef = useRef<string | null>(null);
+  const setupErrorShownRef = useRef(false);
 
   const currentUserId =
     (session?.user as { id?: string } | undefined)?.id ?? null;
 
   useEffect(() => {
     if (status !== "authenticated") {
-      knownPostIdsRef.current = new Set();
-      latestSeenAtRef.current = null;
-      initializedRef.current = false;
-      pollErrorToastShownRef.current = false;
-    }
-  }, [status]);
-
-  useEffect(() => {
-    if (status !== "authenticated" || !supportsWebNotifications()) {
+      subscribedUserIdRef.current = null;
+      setupErrorShownRef.current = false;
       return;
     }
 
-    if (Notification.permission === "default") {
-      toast("开启新帖子通知", {
-        description: "允许浏览器通知后，系统会提醒你有新帖子发布。",
-        action: {
-          label: "允许",
-          onClick: () => {
-            void Notification.requestPermission();
-          },
-        },
-      });
-    }
-  }, [status]);
-
-  useEffect(() => {
-    if (status !== "authenticated") {
+    if (!currentUserId || !supportsWebPush()) {
       return;
     }
 
-    let cancelled = false;
+    if (subscribedUserIdRef.current === currentUserId) {
+      return;
+    }
 
-    const pollForUpdates = async () => {
+    const registerWebPush = async () => {
       try {
-        const posts = await fetchPostUpdates(latestSeenAtRef.current);
-        if (cancelled || posts.length === 0) {
+        const { enabled, publicKey } = await fetchPublicKey();
+        if (!enabled || !publicKey) {
           return;
         }
 
-        const unseenPosts = posts.filter(
-          (post) => !knownPostIdsRef.current.has(post.id),
-        );
+        const permission =
+          Notification.permission === "granted"
+            ? "granted"
+            : await Notification.requestPermission();
 
-        for (const post of posts) {
-          knownPostIdsRef.current.add(post.id);
-          if (
-            !latestSeenAtRef.current ||
-            post.createdAt > latestSeenAtRef.current
-          ) {
-            latestSeenAtRef.current = post.createdAt;
-          }
-        }
-
-        if (!initializedRef.current) {
-          initializedRef.current = true;
+        if (permission !== "granted") {
           return;
         }
 
-        if (
-          !supportsWebNotifications() ||
-          Notification.permission !== "granted" ||
-          unseenPosts.length === 0
-        ) {
-          return;
-        }
+        const registration = await navigator.serviceWorker.register("/sw.js");
+        const applicationServerKey = base64UrlToUint8Array(publicKey);
 
-        const notifyPosts = unseenPosts.filter(
-          (post) => post.authorId !== currentUserId,
-        );
-
-        for (const post of notifyPosts) {
-          const notification = new Notification("新帖子通知", {
-            body: `${post.authorName} 发布了新帖子：${post.title}`,
-            tag: `post-${post.id}`,
-            data: { url: `/posts/${post.id}` },
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey,
           });
-
-          notification.onclick = () => {
-            const url = String(notification.data?.url ?? "/posts");
-            window.focus();
-            window.location.assign(url);
-            notification.close();
-          };
         }
-      } catch {
-        if (!pollErrorToastShownRef.current) {
-          toast.error("新帖子通知暂不可用", {
-            description: "无法获取最新帖子，稍后会自动重试。",
+
+        const subscribeResponse = await fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(subscription),
+        });
+
+        if (!subscribeResponse.ok) {
+          const payload = (await subscribeResponse.json().catch(() => null)) as
+            | SubscribeResponse
+            | null;
+          const message = payload?.error ?? "Push subscription failed";
+          throw new Error(message);
+        }
+
+        subscribedUserIdRef.current = currentUserId;
+      } catch (error) {
+        console.error("Failed to setup web push:", error);
+        if (!setupErrorShownRef.current) {
+          toast.error("开启离线推送失败", {
+            description: "请稍后重试，或检查浏览器通知与站点权限。",
           });
-          pollErrorToastShownRef.current = true;
+          setupErrorShownRef.current = true;
         }
       }
     };
 
-    void pollForUpdates();
-    const intervalId = window.setInterval(pollForUpdates, POLL_INTERVAL_MS);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
+    void registerWebPush();
   }, [status, currentUserId]);
 
   return null;

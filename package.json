@@ -43,7 +43,8 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "tiptap-markdown": "^0.9.0",
-    "valibot": "^1.1.0"
+    "valibot": "^1.1.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",

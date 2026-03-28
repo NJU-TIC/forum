@@ -18,6 +18,8 @@ import { fileTypeFromBuffer } from "file-type";
 import { Result } from "@/types/common/result";
 import { PostComment, SPost } from "@/schema/post";
 import { SUser } from "@/schema/user";
+import { findUserById } from "@/lib/db";
+import { broadcastNewPostPush } from "@/lib/web-push";
 
 const ALLOWED_IMAGE_MIME = [
   "image/jpeg",
@@ -145,6 +147,19 @@ export async function createPostAction(
 
   // Save to database
   const newPost = await createPost(postData);
+
+  // Fire-and-forget broadcast for offline web push.
+  const author = await findUserById(userId);
+  if (author) {
+    void broadcastNewPostPush({
+      postId: newPost._id,
+      postTitle: newPost.title,
+      authorName: author.name,
+      excludeUserId: userId,
+    }).catch((error) => {
+      console.error("Failed to broadcast new post push:", error);
+    });
+  }
 
   return {
     success: true,

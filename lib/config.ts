@@ -8,6 +8,9 @@ export interface Config {
   resendApiKey: string;
   allowedEmailSuffixes: string[];
   mongoDbUri: string;
+  vapidPublicKey: string;
+  vapidPrivateKey: string;
+  vapidSubject: string;
 }
 
 let configFile: Partial<Config> = {};
@@ -24,4 +27,8 @@ export const config: Config = {
     configFile.allowedEmailSuffixes ||
     (process.env.ALLOWED_EMAIL_SUFFIXES?.split(",") ?? []),
   mongoDbUri: configFile.mongoDbUri || process.env.MONGODB_URI || "",
+  vapidPublicKey: configFile.vapidPublicKey || process.env.VAPID_PUBLIC_KEY || "",
+  vapidPrivateKey:
+    configFile.vapidPrivateKey || process.env.VAPID_PRIVATE_KEY || "",
+  vapidSubject: configFile.vapidSubject || process.env.VAPID_SUBJECT || "",
 };

@@ -1,5 +1,8 @@
 {
   "resendApiKey": "re_your_api_key_here",
   "allowedEmailSuffixes": ["nju.edu.cn"],
-  "mongoDbUri": "mongodb://localhost:27017/forum"
+  "mongoDbUri": "mongodb://localhost:27017/forum",
+  "vapidPublicKey": "your_vapid_public_key_here",
+  "vapidPrivateKey": "your_vapid_private_key_here",
+  "vapidSubject": "mailto:you@example.com"
 }
