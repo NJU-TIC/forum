@@ -22,13 +22,14 @@ try {
 }
 
 export const config: Config = {
-  resendApiKey: configFile.resendApiKey || process.env.RESEND_API_KEY || "",
+  resendApiKey: process.env.RESEND_API_KEY || configFile.resendApiKey || "",
   allowedEmailSuffixes:
+    process.env.ALLOWED_EMAIL_SUFFIXES?.split(",") ||
     configFile.allowedEmailSuffixes ||
-    (process.env.ALLOWED_EMAIL_SUFFIXES?.split(",") ?? []),
-  mongoDbUri: configFile.mongoDbUri || process.env.MONGODB_URI || "",
-  vapidPublicKey: configFile.vapidPublicKey || process.env.VAPID_PUBLIC_KEY || "",
+    [],
+  mongoDbUri: process.env.MONGODB_URI || configFile.mongoDbUri || "",
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY || configFile.vapidPublicKey || "",
   vapidPrivateKey:
-    configFile.vapidPrivateKey || process.env.VAPID_PRIVATE_KEY || "",
-  vapidSubject: configFile.vapidSubject || process.env.VAPID_SUBJECT || "",
+    process.env.VAPID_PRIVATE_KEY || configFile.vapidPrivateKey || "",
+  vapidSubject: process.env.VAPID_SUBJECT || configFile.vapidSubject || "",
 };

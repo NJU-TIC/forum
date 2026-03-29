@@ -43,17 +43,19 @@ async function fetchPublicKey(): Promise<PublicKeyResponse> {
   return data as PublicKeyResponse;
 }
 
-function base64UrlToUint8Array(base64UrlString: string): Uint8Array {
+function base64UrlToArrayBuffer(base64UrlString: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64UrlString.length % 4)) % 4);
   const base64 = (base64UrlString + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
+  const byteArray = new Uint8Array(rawData.length);
 
   for (let i = 0; i < rawData.length; i += 1) {
-    outputArray[i] = rawData.charCodeAt(i);
+    byteArray[i] = rawData.charCodeAt(i);
   }
 
-  return outputArray;
+  const buffer = new ArrayBuffer(byteArray.byteLength);
+  new Uint8Array(buffer).set(byteArray);
+  return buffer;
 }
 
 export function NewPostNotifier() {
@@ -96,7 +98,7 @@ export function NewPostNotifier() {
         }
 
         const registration = await navigator.serviceWorker.register("/sw.js");
-        const applicationServerKey = base64UrlToUint8Array(publicKey);
+        const applicationServerKey = base64UrlToArrayBuffer(publicKey);
 
         let subscription = await registration.pushManager.getSubscription();
         if (!subscription) {
