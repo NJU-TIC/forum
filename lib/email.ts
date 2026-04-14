@@ -8,11 +8,13 @@ export async function sendVerificationEmail(
   email: string,
   token: string,
 ): Promise<Result<unknown>> {
-  if (!process.env.NEXTAUTH_URL) {
-    throw new Error("NEXTAUTH_URL is not defined");
-  }
+  const baseUrl =
+    process.env.NEXTAUTH_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
 
-  const baseUrl = process.env.NEXTAUTH_URL;
+  if (!baseUrl) {
+    throw new Error("Base URL is not defined. Set NEXTAUTH_URL or expose Vercel system environment variables.");
+  }
   const verifyUrl = `${baseUrl}/verify?token=${token}`;
 
   try {
