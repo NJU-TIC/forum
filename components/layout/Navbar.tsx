@@ -16,7 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { User, Menu, Search, FileText, LogOut, PenSquare } from "lucide-react";
+import { User, Menu, Search, FileText, LogOut, PenSquare, Gamepad2 } from "lucide-react";
 
 // Reusable navigation link component
 const NavLink = ({
@@ -70,6 +70,10 @@ const NavigationContent = ({ isMobile = false }: { isMobile?: boolean }) => (
           <PenSquare className="mr-2 h-4 w-4" />
           Write Post
         </NavLink>
+        <NavLink href="/games">
+          <Gamepad2 className="mr-2 h-4 w-4" />
+          Games
+        </NavLink>
         <NavLink href="/search">
           <Search className="mr-2 h-4 w-4" />
           Search
@@ -86,6 +90,10 @@ const NavigationContent = ({ isMobile = false }: { isMobile?: boolean }) => (
         <NavLink href="/write-post">
           <PenSquare className="mr-2 h-4 w-4" />
           Write Post
+        </NavLink>
+        <NavLink href="/games">
+          <Gamepad2 className="mr-2 h-4 w-4" />
+          Games
         </NavLink>
         <NavLink href="/search">
           <Search className="mr-2 h-4 w-4" />
