@@ -3,6 +3,7 @@
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "@/components/ui/sonner";
+import { NewPostNotifier } from "@/components/notifications/new-post-notifier";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -16,6 +17,7 @@ interface ProvidersProps {
 export function Providers({ children, session }: ProvidersProps) {
   return (
     <SessionProvider session={session}>
+      <NewPostNotifier />
       {children}
       <Toaster />
     </SessionProvider>

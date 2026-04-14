@@ -53,7 +53,10 @@ export async function signupAction(
   const password = formData.get("password") as string;
 
   if (!name || !email || !password) {
-    return { success: false, error: "Username, email, and password are required" };
+    return {
+      success: false,
+      error: "Username, email, and password are required",
+    };
   }
 
   // Validate email suffix
@@ -66,38 +69,37 @@ export async function signupAction(
   //     error: `Email must end with one of: ${config.allowedEmailSuffixes.join(", ")}`,
   //   };
   // }
-    //  === fix ===
-    // Validate email suffix (case-insensitive, safe boundary, allow subdomains)
-    const normalizedEmail = email.trim();
-    const at = normalizedEmail.lastIndexOf("@");
-    if (at <= 0 || at === normalizedEmail.length - 1) {
-        return { success: false, error: "Invalid email format" };
-    }
+  //  === fix ===
+  // Validate email suffix (case-insensitive, safe boundary, allow subdomains)
+  const normalizedEmail = email.trim();
+  const at = normalizedEmail.lastIndexOf("@");
+  if (at <= 0 || at === normalizedEmail.length - 1) {
+    return { success: false, error: "Invalid email format" };
+  }
 
-    const domain = normalizedEmail
-        .slice(at + 1)
-        .trim()
-        .toLowerCase()
-        .replace(/\.+$/, ""); // remove trailing dot(s)
+  const domain = normalizedEmail
+    .slice(at + 1)
+    .trim()
+    .toLowerCase()
+    .replace(/\.+$/, ""); // remove trailing dot(s)
 
-    const allowedSuffixes = (config.allowedEmailSuffixes ?? [])
-        .map((s) => s.trim().toLowerCase().replace(/^@+/, "").replace(/\.+$/, ""))
-        .filter(Boolean);
+  const allowedSuffixes = (config.allowedEmailSuffixes ?? [])
+    .map((s) => s.trim().toLowerCase().replace(/^@+/, "").replace(/\.+$/, ""))
+    .filter(Boolean);
 
-    const hasAllowedSuffix = allowedSuffixes.some(
-        (suffix) => domain === suffix || domain.endsWith("." + suffix),
-    );
+  const hasAllowedSuffix = allowedSuffixes.some(
+    (suffix) => domain === suffix || domain.endsWith("." + suffix),
+  );
 
-    if (!hasAllowedSuffix) {
-        return {
-            success: false,
-            error: `Email must be under one of: ${allowedSuffixes.join(", ")}`,
-        };
-    }
+  if (!hasAllowedSuffix) {
+    return {
+      success: false,
+      error: `Email must be under one of: ${allowedSuffixes.join(", ")}`,
+    };
+  }
 
-
-    // Check if user already exists
-    const existingUser = await findUserByName(name);
+  // Check if user already exists
+  const existingUser = await findUserByName(name);
   if (existingUser) {
     return { success: false, error: "User already exists" };
   }
@@ -126,7 +128,8 @@ export async function signupAction(
     data: {
       // No user returned yet as they are not active
       shouldSignIn: false,
-      message: "Account created! Please check your email to verify your account.",
+      message:
+        "Account created! Please check your email to verify your account.",
     },
   };
 }
