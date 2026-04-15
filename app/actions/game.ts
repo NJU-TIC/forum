@@ -1,6 +1,7 @@
 "use server";
 
-import { createGame, findGameById, deleteGameById, type GameFileData } from "@/lib/db/game";
+import { createGame, findGameById, deleteGameById } from "@/lib/db/game";
+import { uploadGameFiles, deleteGameFiles } from "@/lib/cos";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { Result } from "@/types/common/result";
 import { SGame } from "@/schema/game";
@@ -135,23 +136,32 @@ export async function uploadGameAction(
     };
   }
 
-  // Build file data for DB storage
-  const gameFiles: GameFileData[] = entries.map((entry) => ({
-    gameId: "", // Will be set by createGame after insert
-    path: entry.path,
-    content: entry.data,
-    contentType: getContentType(entry.path),
-  }));
+  // Save game metadata to database first
+  const newGame = await createGame({
+    author: currentUser.id,
+    title: title.trim(),
+    description: description.trim(),
+  });
 
-  // Save to database
-  const newGame = await createGame(
-    {
-      author: currentUser.id,
-      title: title.trim(),
-      description: description.trim(),
-    },
-    gameFiles,
-  );
+  // Upload all files to COS under the game ID prefix
+  try {
+    await uploadGameFiles(
+      newGame._id,
+      entries.map((entry) => ({
+        path: entry.path,
+        data: entry.data,
+        contentType: getContentType(entry.path),
+      })),
+    );
+  } catch (err) {
+    console.error("[uploadGameAction] COS upload failed:", err);
+    // If COS upload fails, clean up the DB record
+    await deleteGameById(newGame._id);
+    return {
+      success: false,
+      error: `Failed to upload game files: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 
   return {
     success: true,
@@ -177,6 +187,8 @@ export async function deleteGameAction(
     return { success: false, error: "You can only delete your own games" };
   }
 
+  // Delete COS files first, then DB record
+  await deleteGameFiles(gameId);
   await deleteGameById(gameId);
 
   return { success: true, data: null };

@@ -11,13 +11,6 @@ export const GameSchema = v.object({
   updatedAt: v.date(),
 });
 
-export const GameFileSchema = v.object({
-  gameId: ObjectID,
-  path: v.string(),
-  contentType: v.string(),
-  createdAt: v.date(),
-});
-
 export const QueriedGameSchema = v.intersect([
   GameSchema,
   v.object({
@@ -33,6 +26,5 @@ export const SerializableGameSchema = v.intersect([
 ]);
 
 export type Game = v.InferOutput<typeof GameSchema>;
-export type GameFile = v.InferOutput<typeof GameFileSchema>;
 export type QGame = v.InferOutput<typeof QueriedGameSchema>;
 export type SGame = v.InferOutput<typeof SerializableGameSchema>;

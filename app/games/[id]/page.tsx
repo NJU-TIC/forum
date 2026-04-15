@@ -1,5 +1,6 @@
 import { findGameById } from "@/lib/db/game";
 import { findUserById } from "@/lib/db";
+import { getGameUrl } from "@/lib/cos";
 import { notFound } from "next/navigation";
 import { GamePlayer } from "@/components/games/GamePlayer";
 
@@ -30,7 +31,7 @@ export default async function GamePage({
         </p>
         <p className="text-gray-600 mt-2">{game.description}</p>
       </div>
-      <GamePlayer gameId={id} />
+      <GamePlayer gameUrl={getGameUrl(id)} />
     </div>
   );
 }

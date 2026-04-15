@@ -8,6 +8,11 @@ export interface Config {
   resendApiKey: string;
   allowedEmailSuffixes: string[];
   mongoDbUri: string;
+  cosSecretId: string;
+  cosSecretKey: string;
+  cosBucket: string;
+  cosRegion: string;
+  cosPublicUrl: string;
 }
 
 let configFile: Partial<Config> = {};
@@ -24,4 +29,9 @@ export const config: Config = {
     configFile.allowedEmailSuffixes ||
     (process.env.ALLOWED_EMAIL_SUFFIXES?.split(",") ?? []),
   mongoDbUri: configFile.mongoDbUri || process.env.MONGODB_URI || "",
+  cosSecretId: configFile.cosSecretId || process.env.COS_SECRET_ID || "",
+  cosSecretKey: configFile.cosSecretKey || process.env.COS_SECRET_KEY || "",
+  cosBucket: configFile.cosBucket || process.env.COS_BUCKET || "",
+  cosRegion: configFile.cosRegion || process.env.COS_REGION || "",
+  cosPublicUrl: configFile.cosPublicUrl || process.env.COS_PUBLIC_URL || "",
 };
