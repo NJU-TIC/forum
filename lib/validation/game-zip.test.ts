@@ -202,10 +202,29 @@ test("requires root index.html after unwrapping a single top-level directory", a
     "game/pages/start.html": "<html></html>",
   });
 
-  const result = await inspectGameZip(zipBytes);
+  const analysisResult = await inspectGameZip(zipBytes);
+  assert.equal(analysisResult.success, true);
+  assert.equal(analysisResult.data.passed, true);
+
+  const result = await inspectGameZip(zipBytes, {
+    requireRootIndexHtml: true,
+  });
 
   assert.equal(result.success, false);
   assert.equal(result.error.code, "missing_index_html");
+});
+
+test("accepts mixed-case root index names when root index is required", async () => {
+  const zipBytes = await createZip({
+    "INDEX.HTML": "<html></html>",
+  });
+
+  const result = await inspectGameZip(zipBytes, {
+    requireRootIndexHtml: true,
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(result.data.passed, true);
 });
 
 async function createZip(files: Record<string, string>): Promise<Uint8Array> {

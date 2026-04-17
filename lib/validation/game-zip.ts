@@ -21,8 +21,8 @@ export const DEFAULT_GAME_ZIP_LIMITS = {
   maxEntries: 1000,
   maxTotalUncompressedBytes: 50 * 1024 * 1024,
   maxFileBytes: 10 * 1024 * 1024,
-  maxDirectoryDepth: 20,
-  maxPathLength: 240,
+  maxDirectoryDepth: 64,
+  maxPathLength: 512,
   maxProcessingMs: 5000,
 } as const;
 
@@ -33,6 +33,7 @@ export interface GameZipLimits {
   maxDirectoryDepth: number;
   maxPathLength: number;
   maxProcessingMs: number;
+  requireRootIndexHtml?: boolean;
 }
 
 export type GameZipViolationType =
@@ -266,7 +267,7 @@ export async function inspectGameZip(
 
   unwrapSingleTopLevelDirectory(entries);
 
-  if (!entries.some((entry) => entry.path === "index.html" || entry.path === "index.htm")) {
+  if (limits.requireRootIndexHtml && !hasRootIndexHtml(entries)) {
     return {
       success: false,
       error: {
@@ -633,6 +634,10 @@ function unwrapSingleTopLevelDirectory(entries: GameZipEntry[]): void {
   for (const entry of entries) {
     entry.path = entry.path.slice(prefixWithSlash.length);
   }
+}
+
+export function hasRootIndexHtml(entries: Pick<GameZipEntry, "path">[]): boolean {
+  return entries.some((entry) => /^index\.html?$/i.test(entry.path));
 }
 
 function normalizeZipEntryPath(

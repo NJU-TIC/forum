@@ -81,7 +81,9 @@ export async function uploadGameAction(
   }
 
   const zipBuffer = Buffer.from(await zipFile.arrayBuffer());
-  const inspectionResult = await inspectGameZip(zipBuffer);
+  const inspectionResult = await inspectGameZip(zipBuffer, {
+    requireRootIndexHtml: true,
+  });
   if (!inspectionResult.success) {
     return {
       success: false,
