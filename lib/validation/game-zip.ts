@@ -128,6 +128,7 @@ interface ZipEntrySizeData {
 
 interface ZipEntryWithSize extends JSZipObject {
   _data?: ZipEntrySizeData;
+  unsafeOriginalName?: string;
 }
 
 type PathNormalizationResult =
@@ -236,7 +237,8 @@ export async function inspectGameZip(
       return createAnalysisError(timeError.code, timeError.message, timeError.file);
     }
 
-    const normalizedPathResult = normalizeZipEntryPath(rawPath, zipEntry.dir, limits);
+    const originalPath = (zipEntry as ZipEntryWithSize).unsafeOriginalName ?? rawPath;
+    const normalizedPathResult = normalizeZipEntryPath(originalPath, zipEntry.dir, limits);
     if (!normalizedPathResult.ok) {
       return {
         passed: false,
