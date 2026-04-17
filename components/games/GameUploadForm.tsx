@@ -3,9 +3,14 @@
 import { useState } from "react";
 import { type Result } from "@/types/common/result";
 import { SGame } from "@/schema/game";
+import {
+  isStructuredUploadGameError,
+  type HtmlZipValidationError,
+  type UploadGameActionError,
+} from "@/lib/validation/game-zip";
 
 interface GameUploadFormProps {
-  action: (formData: FormData) => Promise<Result<{ game: SGame }>>;
+  action: (formData: FormData) => Promise<Result<{ game: SGame }, UploadGameActionError>>;
   onSuccess: (data: { game: SGame }) => void;
 }
 
@@ -13,7 +18,7 @@ export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [zipFile, setZipFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UploadGameActionError | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,11 +44,23 @@ export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
     onSuccess(result.data);
   };
 
+  const validationError = getHtmlValidationError(error);
+  const errorMessage = getErrorMessage(error);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
+      {errorMessage && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
-          {error}
+          <p>{errorMessage}</p>
+          {validationError && (
+            <ul className="mt-3 list-disc pl-5 text-sm">
+              {validationError.violations.map((violation, index) => (
+                <li key={`${violation.file}-${violation.type}-${index}`}>
+                  {violation.file}: {violation.type}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -109,7 +126,7 @@ export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
           </p>
         )}
         <p className="mt-1 text-xs text-gray-500">
-          The ZIP must contain an index.html at the root level.
+          The ZIP must contain an index.html at the root level. HTML files cannot contain inline JavaScript.
         </p>
       </div>
 
@@ -131,4 +148,26 @@ export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
       </div>
     </form>
   );
+}
+
+function getErrorMessage(error: UploadGameActionError | null): string | null {
+  if (!error) {
+    return null;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return error.message;
+}
+
+function getHtmlValidationError(
+  error: UploadGameActionError | null,
+): HtmlZipValidationError | null {
+  if (!error || !isStructuredUploadGameError(error)) {
+    return null;
+  }
+
+  return error.code === "html_validation_failed" ? error : null;
 }
