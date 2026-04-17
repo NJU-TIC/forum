@@ -1,20 +1,12 @@
 import JSZip, { type JSZipObject } from "jszip";
+import { parse } from "parse5";
+import type { DefaultTreeAdapterMap } from "parse5";
+
+type Element = DefaultTreeAdapterMap["element"];
 
 const HTML_FILE_PATTERN = /\.html?$/i;
 const JAVASCRIPT_PROTOCOL_ATTRS = new Set(["href", "src", "action", "formaction"]);
 const ALLOWED_SCRIPT_TYPES = new Set(["application/json", "application/ld+json"]);
-const RAW_TEXT_TAGS = new Set(["script", "style", "textarea", "title"]);
-const NAMED_HTML_ENTITIES: Record<string, string> = {
-  amp: "&",
-  lt: "<",
-  gt: ">",
-  quot: "\"",
-  apos: "'",
-  nbsp: "\u00a0",
-  colon: ":",
-  tab: "\t",
-  newline: "\n",
-};
 
 export const DEFAULT_GAME_ZIP_LIMITS = {
   maxEntries: 500,
@@ -109,18 +101,6 @@ export type UploadGameActionError =
   | string
   | GameZipAnalysisError
   | HtmlZipValidationError;
-
-interface ParsedAttribute {
-  name: string;
-  value: string;
-}
-
-interface ParsedStartTag {
-  tagName: string;
-  attributes: ParsedAttribute[];
-  nextIndex: number;
-  selfClosing: boolean;
-}
 
 interface ZipEntrySizeData {
   uncompressedSize?: number;
@@ -366,57 +346,19 @@ function findHtmlViolations(
   deadline: number,
 ): GameZipViolation[] {
   const violations: GameZipViolation[] = [];
-  let index = 0;
+  const doc = parse(html);
 
-  while (index < html.length) {
-    if ((index & 1023) === 0) {
-      const timeoutError = getTimeoutError(deadline);
-      if (timeoutError) {
-        throw new Error(timeoutError.message);
-      }
+  let visited = 0;
+  walk(doc, (el) => {
+    visited++;
+    if ((visited & 127) === 0 && Date.now() > deadline) {
+      throw new Error("ZIP 分析超时，已中止处理");
     }
 
-    if (html.charCodeAt(index) !== 60) {
-      index += 1;
-      continue;
-    }
+    collectAttributeViolations(filePath, el.attrs, violations);
 
-    if (html.startsWith("<!--", index)) {
-      const commentEnd = html.indexOf("-->", index + 4);
-      index = commentEnd === -1 ? html.length : commentEnd + 3;
-      continue;
-    }
-
-    if (html.startsWith("</", index)) {
-      const closingTagEnd = html.indexOf(">", index + 2);
-      index = closingTagEnd === -1 ? html.length : closingTagEnd + 1;
-      continue;
-    }
-
-    if (html.startsWith("<!", index) || html.startsWith("<?", index)) {
-      const declarationEnd = html.indexOf(">", index + 2);
-      index = declarationEnd === -1 ? html.length : declarationEnd + 1;
-      continue;
-    }
-
-    const parsedStartTag = parseStartTag(html, index);
-    if (!parsedStartTag) {
-      index += 1;
-      continue;
-    }
-
-    index = parsedStartTag.nextIndex;
-    collectAttributeViolations(filePath, parsedStartTag.attributes, violations);
-
-    if (!RAW_TEXT_TAGS.has(parsedStartTag.tagName) || parsedStartTag.selfClosing) {
-      continue;
-    }
-
-    const rawTextRegion = readRawTextRegion(html, index, parsedStartTag.tagName);
-
-    if (parsedStartTag.tagName === "script") {
-      const scriptContent = html.slice(index, rawTextRegion.contentEnd);
-      if (isExecutableInlineScript(parsedStartTag.attributes, scriptContent)) {
+    if (el.tagName === "script") {
+      if (isExecutableInlineScript(el.attrs, textContent(el))) {
         violations.push({
           file: filePath,
           type: "inline_script",
@@ -424,16 +366,14 @@ function findHtmlViolations(
         });
       }
     }
-
-    index = rawTextRegion.nextIndex;
-  }
+  });
 
   return violations;
 }
 
 function collectAttributeViolations(
   filePath: string,
-  attributes: ParsedAttribute[],
+  attributes: Element["attrs"],
   violations: GameZipViolation[],
 ): void {
   for (const attribute of attributes) {
@@ -458,148 +398,38 @@ function collectAttributeViolations(
   }
 }
 
-function parseStartTag(html: string, index: number): ParsedStartTag | null {
-  let cursor = index + 1;
-  cursor = skipWhitespace(html, cursor);
-
-  if (!isTagNameStartCharacter(html.charCodeAt(cursor))) {
-    return null;
+function walk(
+  node: DefaultTreeAdapterMap["node"],
+  visitor: (el: Element) => void,
+): void {
+  if ("tagName" in node) {
+    visitor(node as Element);
   }
 
-  const nameStart = cursor;
-  while (cursor < html.length && isTagNameCharacter(html.charCodeAt(cursor))) {
-    cursor += 1;
+  const children: DefaultTreeAdapterMap["node"][] =
+    "content" in node
+      ? (node as DefaultTreeAdapterMap["template"]).content.childNodes
+      : "childNodes" in node
+        ? (node as { childNodes: DefaultTreeAdapterMap["node"][] }).childNodes
+        : [];
+
+  for (const child of children) {
+    walk(child, visitor);
   }
-
-  if (cursor === nameStart) {
-    return null;
-  }
-
-  const tagName = html.slice(nameStart, cursor).toLowerCase();
-  const attributes: ParsedAttribute[] = [];
-  let selfClosing = false;
-
-  while (cursor < html.length) {
-    cursor = skipWhitespace(html, cursor);
-
-    if (cursor >= html.length) {
-      break;
-    }
-
-    const current = html.charCodeAt(cursor);
-    if (current === 62) {
-      cursor += 1;
-      break;
-    }
-
-    if (current === 47 && html.charCodeAt(cursor + 1) === 62) {
-      selfClosing = true;
-      cursor += 2;
-      break;
-    }
-
-    const attrNameStart = cursor;
-    while (cursor < html.length && isAttributeNameCharacter(html.charCodeAt(cursor))) {
-      cursor += 1;
-    }
-
-    if (cursor === attrNameStart) {
-      cursor += 1;
-      continue;
-    }
-
-    const name = html.slice(attrNameStart, cursor).toLowerCase();
-    cursor = skipWhitespace(html, cursor);
-
-    let value = "";
-    if (html.charCodeAt(cursor) === 61) {
-      cursor += 1;
-      cursor = skipWhitespace(html, cursor);
-
-      const quote = html.charCodeAt(cursor);
-      if (quote === 34 || quote === 39) {
-        cursor += 1;
-        const valueStart = cursor;
-        while (cursor < html.length && html.charCodeAt(cursor) !== quote) {
-          cursor += 1;
-        }
-        value = html.slice(valueStart, cursor);
-        if (cursor < html.length) {
-          cursor += 1;
-        }
-      } else {
-        const valueStart = cursor;
-        while (
-          cursor < html.length &&
-          !isWhitespace(html.charCodeAt(cursor)) &&
-          html.charCodeAt(cursor) !== 62
-        ) {
-          cursor += 1;
-        }
-        value = html.slice(valueStart, cursor);
-      }
-    }
-
-    attributes.push({ name, value });
-  }
-
-  return {
-    tagName,
-    attributes,
-    nextIndex: cursor,
-    selfClosing,
-  };
 }
 
-function readRawTextRegion(
-  html: string,
-  startIndex: number,
-  tagName: string,
-): { contentEnd: number; nextIndex: number } {
-  let cursor = startIndex;
-
-  while (cursor < html.length) {
-    const nextLt = html.indexOf("<", cursor);
-    if (nextLt === -1) {
-      return {
-        contentEnd: html.length,
-        nextIndex: html.length,
-      };
+function textContent(el: Element): string {
+  let text = "";
+  for (const child of el.childNodes) {
+    if ("value" in child) {
+      text += (child as DefaultTreeAdapterMap["textNode"]).value;
     }
-
-    if (isClosingTag(html, nextLt, tagName)) {
-      const closingTagEnd = html.indexOf(">", nextLt + 2);
-      return {
-        contentEnd: nextLt,
-        nextIndex: closingTagEnd === -1 ? html.length : closingTagEnd + 1,
-      };
-    }
-
-    cursor = nextLt + 1;
   }
-
-  return {
-    contentEnd: html.length,
-    nextIndex: html.length,
-  };
-}
-
-function isClosingTag(html: string, index: number, tagName: string): boolean {
-  if (!html.startsWith("</", index)) {
-    return false;
-  }
-
-  const candidate = html.slice(index + 2, index + 2 + tagName.length).toLowerCase();
-  if (candidate !== tagName) {
-    return false;
-  }
-
-  const trailing = html.charCodeAt(index + 2 + tagName.length);
-  return trailing === 62 || isWhitespace(trailing);
+  return text;
 }
 
 function isExecutableInlineScript(
-  attributes: ParsedAttribute[],
+  attributes: Element["attrs"],
   scriptContent: string,
 ): boolean {
   let hasSrc = false;
@@ -628,44 +458,13 @@ function isExecutableInlineScript(
 }
 
 function isJavascriptProtocol(value: string): boolean {
-  if (value.length === 0) {
-    return false;
-  }
+  if (!value.length) return false;
 
-  const normalizedValue = decodeHtmlEntities(value)
+  const normalized = value
     .replace(/^[\u0000-\u0020\u007f]+|[\u0000-\u0020\u007f]+$/g, "")
     .toLowerCase();
 
-  return normalizedValue.startsWith("javascript:");
-}
-
-function decodeHtmlEntities(value: string): string {
-  return value.replace(/&(#x[0-9a-f]+|#[0-9]+|[0-9a-z]+);?/gi, (match, body: string) => {
-    const entity = body.toLowerCase();
-    if (entity.startsWith("#x")) {
-      const codePoint = Number.parseInt(entity.slice(2), 16);
-      return Number.isFinite(codePoint) ? safeCodePoint(codePoint) : match;
-    }
-
-    if (entity.startsWith("#")) {
-      const codePoint = Number.parseInt(entity.slice(1), 10);
-      return Number.isFinite(codePoint) ? safeCodePoint(codePoint) : match;
-    }
-
-    return NAMED_HTML_ENTITIES[entity] ?? match;
-  });
-}
-
-function safeCodePoint(codePoint: number): string {
-  if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) {
-    return "\uFFFD";
-  }
-
-  try {
-    return String.fromCodePoint(codePoint);
-  } catch {
-    return "\uFFFD";
-  }
+  return normalized.startsWith("javascript:");
 }
 
 function unwrapSingleTopLevelDirectory(entries: GameZipEntry[]): void {
@@ -789,31 +588,4 @@ function getTimeoutError(deadline: number): GameZipAnalysisError | null {
     code: "analysis_timeout",
     message: "ZIP 分析超时，已中止处理",
   };
-}
-
-function isTagNameStartCharacter(code: number): boolean {
-  return (
-    (code >= 65 && code <= 90) ||
-    (code >= 97 && code <= 122)
-  );
-}
-
-function isTagNameCharacter(code: number): boolean {
-  return isTagNameStartCharacter(code) || (code >= 48 && code <= 57) || code === 45 || code === 58;
-}
-
-function isAttributeNameCharacter(code: number): boolean {
-  return code > 32 && code !== 47 && code !== 61 && code !== 62;
-}
-
-function skipWhitespace(input: string, index: number): number {
-  let cursor = index;
-  while (cursor < input.length && isWhitespace(input.charCodeAt(cursor))) {
-    cursor += 1;
-  }
-  return cursor;
-}
-
-function isWhitespace(code: number): boolean {
-  return code === 9 || code === 10 || code === 12 || code === 13 || code === 32;
 }
