@@ -1,5 +1,4 @@
 import JSZip, { type JSZipObject } from "jszip";
-import type { Result } from "../../types/common/result.ts";
 
 const HTML_FILE_PATTERN = /\.html?$/i;
 const JAVASCRIPT_PROTOCOL_ATTRS = new Set(["href", "src", "action", "formaction"]);
@@ -18,11 +17,11 @@ const NAMED_HTML_ENTITIES: Record<string, string> = {
 };
 
 export const DEFAULT_GAME_ZIP_LIMITS = {
-  maxEntries: 1000,
-  maxTotalUncompressedBytes: 50 * 1024 * 1024,
-  maxFileBytes: 10 * 1024 * 1024,
-  maxDirectoryDepth: 64,
-  maxPathLength: 512,
+  maxEntries: 500,
+  maxTotalUncompressedBytes: 8 * 1024 * 1024,
+  maxFileBytes: 2 * 1024 * 1024,
+  maxDirectoryDepth: 32,
+  maxPathLength: 260,
   maxProcessingMs: 5000,
 } as const;
 
@@ -47,9 +46,10 @@ export interface GameZipViolation {
   message?: string;
 }
 
-export interface HtmlZipAnalysisResult {
-  passed: boolean;
+export interface HtmlZipAnalysisErrorResult {
+  passed: false;
   violations: GameZipViolation[];
+  error: GameZipAnalysisError;
 }
 
 export interface GameZipEntry {
@@ -57,9 +57,34 @@ export interface GameZipEntry {
   data: Buffer;
 }
 
-export interface InspectedGameZip extends HtmlZipAnalysisResult {
+export interface HtmlZipAnalysisPassedResult {
+  passed: true;
+  violations: GameZipViolation[];
+}
+
+export interface HtmlZipAnalysisViolationResult {
+  passed: false;
+  violations: GameZipViolation[];
+  error?: undefined;
+}
+
+export type HtmlZipAnalysisResult =
+  | HtmlZipAnalysisPassedResult
+  | HtmlZipAnalysisViolationResult
+  | HtmlZipAnalysisErrorResult;
+
+export interface InspectedGameZipPassedResult extends HtmlZipAnalysisPassedResult {
   entries: GameZipEntry[];
 }
+
+export interface InspectedGameZipViolationResult extends HtmlZipAnalysisViolationResult {
+  entries?: undefined;
+}
+
+export type InspectedGameZipResult =
+  | InspectedGameZipPassedResult
+  | InspectedGameZipViolationResult
+  | HtmlZipAnalysisErrorResult;
 
 export type GameZipAnalysisErrorCode =
   | "invalid_zip"
@@ -75,11 +100,10 @@ export interface GameZipAnalysisError {
   file?: string;
 }
 
-export interface HtmlZipValidationError extends HtmlZipAnalysisResult {
+export type HtmlZipValidationError = HtmlZipAnalysisViolationResult & {
   code: "html_validation_failed";
   message: string;
-  passed: false;
-}
+};
 
 export type UploadGameActionError =
   | string
@@ -106,10 +130,41 @@ interface ZipEntryWithSize extends JSZipObject {
   _data?: ZipEntrySizeData;
 }
 
+type PathNormalizationResult =
+  | {
+      ok: true;
+      data: string;
+    }
+  | (HtmlZipAnalysisErrorResult & {
+      ok: false;
+    });
+
 export function isStructuredUploadGameError(
   error: UploadGameActionError,
 ): error is GameZipAnalysisError | HtmlZipValidationError {
   return typeof error === "object" && error !== null && "code" in error;
+}
+
+export function hasGameZipAnalysisError(
+  result: HtmlZipAnalysisResult | InspectedGameZipResult,
+): result is HtmlZipAnalysisErrorResult {
+  return "error" in result && result.error !== undefined;
+}
+
+function createAnalysisError(
+  code: GameZipAnalysisErrorCode,
+  message: string,
+  file?: string,
+): HtmlZipAnalysisErrorResult {
+  return {
+    passed: false,
+    violations: [],
+    error: {
+      code,
+      message,
+      file,
+    },
+  };
 }
 
 export function createHtmlZipValidationError(
@@ -118,7 +173,7 @@ export function createHtmlZipValidationError(
   const count = violations.length;
   return {
     code: "html_validation_failed",
-    message: `Found ${count} HTML JavaScript violation${count === 1 ? "" : "s"} in the ZIP`,
+    message: `ZIP 中共发现 ${count} 处 HTML 内嵌 JavaScript 违规`,
     passed: false,
     violations,
   };
@@ -127,25 +182,33 @@ export function createHtmlZipValidationError(
 export async function analyzeGameZip(
   source: ArrayBuffer | Uint8Array,
   options?: Partial<GameZipLimits>,
-): Promise<Result<HtmlZipAnalysisResult, GameZipAnalysisError>> {
+): Promise<HtmlZipAnalysisResult> {
   const inspection = await inspectGameZip(source, options);
-  if (!inspection.success) {
-    return inspection;
+  if (hasGameZipAnalysisError(inspection)) {
+    return {
+      passed: false,
+      violations: [],
+      error: inspection.error,
+    };
+  }
+
+  if (inspection.passed) {
+    return {
+      passed: true,
+      violations: inspection.violations,
+    };
   }
 
   return {
-    success: true,
-    data: {
-      passed: inspection.data.passed,
-      violations: inspection.data.violations,
-    },
+    passed: false,
+    violations: inspection.violations,
   };
 }
 
 export async function inspectGameZip(
   source: ArrayBuffer | Uint8Array,
   options?: Partial<GameZipLimits>,
-): Promise<Result<InspectedGameZip, GameZipAnalysisError>> {
+): Promise<InspectedGameZipResult> {
   const limits = { ...DEFAULT_GAME_ZIP_LIMITS, ...options };
   const deadline = Date.now() + limits.maxProcessingMs;
 
@@ -153,24 +216,15 @@ export async function inspectGameZip(
   try {
     zip = await JSZip.loadAsync(source);
   } catch {
-    return {
-      success: false,
-      error: {
-        code: "invalid_zip",
-        message: "Invalid ZIP file",
-      },
-    };
+    return createAnalysisError("invalid_zip", "ZIP 文件无效，无法解析");
   }
 
   const zipEntries = Object.entries(zip.files);
   if (zipEntries.length > limits.maxEntries) {
-    return {
-      success: false,
-      error: {
-        code: "resource_limit_exceeded",
-        message: `ZIP contains too many entries (max ${limits.maxEntries})`,
-      },
-    };
+    return createAnalysisError(
+      "resource_limit_exceeded",
+      `ZIP 条目数量超限，最多允许 ${limits.maxEntries} 个`,
+    );
   }
 
   const entries: GameZipEntry[] = [];
@@ -179,12 +233,16 @@ export async function inspectGameZip(
   for (const [rawPath, zipEntry] of zipEntries) {
     const timeError = getTimeoutError(deadline);
     if (timeError) {
-      return { success: false, error: timeError };
+      return createAnalysisError(timeError.code, timeError.message, timeError.file);
     }
 
     const normalizedPathResult = normalizeZipEntryPath(rawPath, zipEntry.dir, limits);
-    if (!normalizedPathResult.success) {
-      return normalizedPathResult;
+    if (!normalizedPathResult.ok) {
+      return {
+        passed: false,
+        violations: [],
+        error: normalizedPathResult.error,
+      };
     }
 
     const normalizedPath = normalizedPathResult.data;
@@ -192,61 +250,49 @@ export async function inspectGameZip(
       continue;
     }
 
-    if (isHiddenOrSystemPath(normalizedPath)) {
-      continue;
-    }
-
     const sizeHint = getUncompressedSizeHint(zipEntry);
     if (typeof sizeHint === "number" && sizeHint > limits.maxFileBytes) {
-      return {
-        success: false,
-        error: {
-          code: "resource_limit_exceeded",
-          file: normalizedPath,
-          message: `File "${normalizedPath}" is too large (max ${formatMiB(limits.maxFileBytes)}MB per file)`,
-        },
-      };
+      return createAnalysisError(
+        "resource_limit_exceeded",
+        `文件 "${normalizedPath}" 大小超限，单文件最大允许 ${formatMiB(limits.maxFileBytes)}MB`,
+        normalizedPath,
+      );
     }
 
     let fileData: Uint8Array;
     try {
       fileData = await zipEntry.async("uint8array");
     } catch {
-      return {
-        success: false,
-        error: {
-          code: "invalid_zip",
-          file: normalizedPath,
-          message: `Failed to read ZIP entry "${normalizedPath}"`,
-        },
-      };
+      return createAnalysisError(
+        "invalid_zip",
+        `无法读取 ZIP 条目 "${normalizedPath}"`,
+        normalizedPath,
+      );
     }
 
     const readTimeoutError = getTimeoutError(deadline);
     if (readTimeoutError) {
-      return { success: false, error: readTimeoutError };
+      return createAnalysisError(
+        readTimeoutError.code,
+        readTimeoutError.message,
+        readTimeoutError.file,
+      );
     }
 
     if (fileData.byteLength > limits.maxFileBytes) {
-      return {
-        success: false,
-        error: {
-          code: "resource_limit_exceeded",
-          file: normalizedPath,
-          message: `File "${normalizedPath}" is too large (max ${formatMiB(limits.maxFileBytes)}MB per file)`,
-        },
-      };
+      return createAnalysisError(
+        "resource_limit_exceeded",
+        `文件 "${normalizedPath}" 大小超限，单文件最大允许 ${formatMiB(limits.maxFileBytes)}MB`,
+        normalizedPath,
+      );
     }
 
     totalUncompressedBytes += fileData.byteLength;
     if (totalUncompressedBytes > limits.maxTotalUncompressedBytes) {
-      return {
-        success: false,
-        error: {
-          code: "resource_limit_exceeded",
-          message: `ZIP expands beyond the allowed size (max ${formatMiB(limits.maxTotalUncompressedBytes)}MB)`,
-        },
-      };
+      return createAnalysisError(
+        "resource_limit_exceeded",
+        `ZIP 解压后的总大小超限，最大允许 ${formatMiB(limits.maxTotalUncompressedBytes)}MB`,
+      );
     }
 
     entries.push({
@@ -256,25 +302,16 @@ export async function inspectGameZip(
   }
 
   if (entries.length === 0) {
-    return {
-      success: false,
-      error: {
-        code: "invalid_zip",
-        message: "ZIP file contains no files",
-      },
-    };
+    return createAnalysisError("invalid_zip", "ZIP 中没有可分析的文件");
   }
 
   unwrapSingleTopLevelDirectory(entries);
 
   if (limits.requireRootIndexHtml && !hasRootIndexHtml(entries)) {
-    return {
-      success: false,
-      error: {
-        code: "missing_index_html",
-        message: "ZIP must contain an index.html (or index.htm) at the root level",
-      },
-    };
+    return createAnalysisError(
+      "missing_index_html",
+      "ZIP 根目录必须包含 index.html 或 index.htm",
+    );
   }
 
   const violations: GameZipViolation[] = [];
@@ -286,33 +323,38 @@ export async function inspectGameZip(
 
     const htmlTimeoutError = getTimeoutError(deadline);
     if (htmlTimeoutError) {
-      return { success: false, error: htmlTimeoutError };
+      return createAnalysisError(
+        htmlTimeoutError.code,
+        htmlTimeoutError.message,
+        htmlTimeoutError.file,
+      );
     }
 
     try {
       const html = entry.data.toString("utf8");
       violations.push(...findHtmlViolations(entry.path, html, deadline));
     } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: "invalid_html_file",
-          file: entry.path,
-          message: error instanceof Error
-            ? `Failed to analyze HTML file "${entry.path}": ${error.message}`
-            : `Failed to analyze HTML file "${entry.path}"`,
-        },
-      };
+      return createAnalysisError(
+        "invalid_html_file",
+        error instanceof Error
+          ? `分析 HTML 文件 "${entry.path}" 时失败：${error.message}`
+          : `分析 HTML 文件 "${entry.path}" 时失败`,
+        entry.path,
+      );
     }
   }
 
-  return {
-    success: true,
-    data: {
-      entries,
-      passed: violations.length === 0,
+  if (violations.length > 0) {
+    return {
+      passed: false,
       violations,
-    },
+    };
+  }
+
+  return {
+    passed: true,
+    violations,
+    entries,
   };
 }
 
@@ -376,7 +418,7 @@ function findHtmlViolations(
         violations.push({
           file: filePath,
           type: "inline_script",
-          message: `Executable inline <script> found in "${filePath}"`,
+          message: `文件 "${filePath}" 中发现可执行的内联 <script>`,
         });
       }
     }
@@ -397,7 +439,7 @@ function collectAttributeViolations(
       violations.push({
         file: filePath,
         type: "inline_event_handler",
-        message: `Inline event handler "${attribute.name}" found in "${filePath}"`,
+        message: `文件 "${filePath}" 中发现内联事件处理器属性 "${attribute.name}"`,
       });
     }
 
@@ -408,7 +450,7 @@ function collectAttributeViolations(
       violations.push({
         file: filePath,
         type: "javascript_protocol",
-        message: `javascript: protocol used in "${attribute.name}" within "${filePath}"`,
+        message: `文件 "${filePath}" 中的属性 "${attribute.name}" 使用了 javascript: 协议`,
       });
     }
   }
@@ -417,6 +459,10 @@ function collectAttributeViolations(
 function parseStartTag(html: string, index: number): ParsedStartTag | null {
   let cursor = index + 1;
   cursor = skipWhitespace(html, cursor);
+
+  if (!isTagNameStartCharacter(html.charCodeAt(cursor))) {
+    return null;
+  }
 
   const nameStart = cursor;
   while (cursor < html.length && isTagNameCharacter(html.charCodeAt(cursor))) {
@@ -644,9 +690,9 @@ function normalizeZipEntryPath(
   rawPath: string,
   isDirectory: boolean,
   limits: GameZipLimits,
-): Result<string, GameZipAnalysisError> {
+): PathNormalizationResult {
   if (!rawPath) {
-    return dangerousZipEntry("ZIP entry path is empty");
+    return dangerousZipEntry("ZIP 条目路径为空");
   }
 
   const slashNormalizedPath = rawPath.replace(/\\/g, "/");
@@ -655,7 +701,7 @@ function normalizeZipEntryPath(
     slashNormalizedPath.startsWith("//") ||
     /^[a-zA-Z]:\//.test(slashNormalizedPath)
   ) {
-    return dangerousZipEntry(`ZIP entry path "${rawPath}" is not relative`);
+    return dangerousZipEntry(`ZIP 条目路径 "${rawPath}" 不是相对路径`);
   }
 
   const normalizedSegments: string[] = [];
@@ -667,61 +713,60 @@ function normalizeZipEntryPath(
     }
 
     if (rawSegment === "..") {
-      return dangerousZipEntry(`ZIP entry path "${rawPath}" escapes the root directory`);
+      return dangerousZipEntry(`ZIP 条目路径 "${rawPath}" 试图逃逸出根目录`);
     }
 
     normalizedSegments.push(rawSegment);
   }
 
   if (normalizedSegments.length === 0) {
-    return dangerousZipEntry(`ZIP entry path "${rawPath}" is invalid`);
+    return dangerousZipEntry(`ZIP 条目路径 "${rawPath}" 无效`);
   }
 
   const normalizedPath = normalizedSegments.join("/");
   const directoryDepth = Math.max(0, normalizedSegments.length - (isDirectory ? 0 : 1));
 
   if (directoryDepth > limits.maxDirectoryDepth) {
-    return {
-      success: false,
-      error: {
-        code: "resource_limit_exceeded",
-        file: normalizedPath,
-        message: `ZIP entry "${normalizedPath}" exceeds the maximum directory depth (${limits.maxDirectoryDepth})`,
-      },
-    };
+    return createPathNormalizationError(
+      "resource_limit_exceeded",
+      `ZIP 条目 "${normalizedPath}" 的目录深度超限，最大允许 ${limits.maxDirectoryDepth} 层`,
+      normalizedPath,
+    );
   }
 
   if (normalizedPath.length > limits.maxPathLength) {
-    return {
-      success: false,
-      error: {
-        code: "resource_limit_exceeded",
-        file: normalizedPath,
-        message: `ZIP entry path "${normalizedPath}" exceeds the maximum length (${limits.maxPathLength})`,
-      },
-    };
+    return createPathNormalizationError(
+      "resource_limit_exceeded",
+      `ZIP 条目路径 "${normalizedPath}" 长度超限，最大允许 ${limits.maxPathLength} 个字符`,
+      normalizedPath,
+    );
   }
 
   return {
-    success: true,
+    ok: true,
     data: normalizedPath,
   };
 }
 
-function dangerousZipEntry(message: string): Result<string, GameZipAnalysisError> {
-  return {
-    success: false,
-    error: {
-      code: "dangerous_zip_entry",
-      message,
-    },
-  };
+function dangerousZipEntry(message: string): PathNormalizationResult {
+  return createPathNormalizationError("dangerous_zip_entry", message);
 }
 
-function isHiddenOrSystemPath(filePath: string): boolean {
-  return filePath.split("/").some((part) =>
-    part.startsWith(".") || part === "__MACOSX" || part === "Thumbs.db"
-  );
+function createPathNormalizationError(
+  code: GameZipAnalysisErrorCode,
+  message: string,
+  file?: string,
+): PathNormalizationResult {
+  return {
+    ok: false,
+    passed: false,
+    violations: [],
+    error: {
+      code,
+      message,
+      file,
+    },
+  };
 }
 
 function getUncompressedSizeHint(zipEntry: JSZipObject): number | undefined {
@@ -740,12 +785,19 @@ function getTimeoutError(deadline: number): GameZipAnalysisError | null {
 
   return {
     code: "analysis_timeout",
-    message: "ZIP analysis exceeded the maximum processing time",
+    message: "ZIP 分析超时，已中止处理",
   };
 }
 
+function isTagNameStartCharacter(code: number): boolean {
+  return (
+    (code >= 65 && code <= 90) ||
+    (code >= 97 && code <= 122)
+  );
+}
+
 function isTagNameCharacter(code: number): boolean {
-  return code > 32 && code !== 47 && code !== 62;
+  return isTagNameStartCharacter(code) || (code >= 48 && code <= 57) || code === 45 || code === 58;
 }
 
 function isAttributeNameCharacter(code: number): boolean {

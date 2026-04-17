@@ -56,7 +56,7 @@ export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
             <ul className="mt-3 list-disc pl-5 text-sm">
               {validationError.violations.map((violation, index) => (
                 <li key={`${violation.file}-${violation.type}-${index}`}>
-                  {violation.file}: {violation.type}
+                  {violation.message || `${violation.file}: ${violation.type}`}
                 </li>
               ))}
             </ul>

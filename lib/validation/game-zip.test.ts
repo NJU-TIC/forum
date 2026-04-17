@@ -31,9 +31,8 @@ test("passes valid HTML files and allowed script tags", async () => {
 
   const result = await analyzeGameZip(zipBytes);
 
-  assert.equal(result.success, true);
-  assert.equal(result.data.passed, true);
-  assert.deepEqual(result.data.violations, []);
+  assert.equal(result.passed, true);
+  assert.deepEqual(result.violations, []);
 });
 
 test("collects all violations across multiple HTML files without deduplication", async () => {
@@ -53,10 +52,9 @@ test("collects all violations across multiple HTML files without deduplication",
 
   const result = await analyzeGameZip(zipBytes);
 
-  assert.equal(result.success, true);
-  assert.equal(result.data.passed, false);
+  assert.equal(result.passed, false);
   assert.deepEqual(
-    result.data.violations.map((violation: GameZipViolation) => ({
+    result.violations.map((violation: GameZipViolation) => ({
       file: violation.file,
       type: violation.type,
     })),
@@ -80,10 +78,9 @@ test("treats broken HTML as analyzable and still reports executable inline scrip
 
   const result = await analyzeGameZip(zipBytes);
 
-  assert.equal(result.success, true);
-  assert.equal(result.data.passed, false);
-  assert.equal(result.data.violations.length, 1);
-  assert.equal(result.data.violations[0]?.type, "inline_script");
+  assert.equal(result.passed, false);
+  assert.equal(result.violations.length, 1);
+  assert.equal(result.violations[0]?.type, "inline_script");
 });
 
 test("does not report empty event handlers or empty inline scripts", async () => {
@@ -97,9 +94,28 @@ test("does not report empty event handlers or empty inline scripts", async () =>
 
   const result = await analyzeGameZip(zipBytes);
 
-  assert.equal(result.success, true);
-  assert.equal(result.data.passed, true);
-  assert.deepEqual(result.data.violations, []);
+  assert.equal(result.passed, true);
+  assert.deepEqual(result.violations, []);
+});
+
+test("keeps scanning after malformed lone angle brackets and catches later scripts", async () => {
+  const zipBytes = await createZip({
+    "index.html": `
+      <div>before</div>
+      <
+        <script>
+          window.__LATE_INLINE__ = true;
+        </script>
+    `,
+  });
+
+  const result = await analyzeGameZip(zipBytes);
+
+  assert.equal(result.passed, false);
+  assert.deepEqual(
+    result.violations.map((violation) => violation.type),
+    ["inline_script"],
+  );
 });
 
 test("fails safely on dangerous parent traversal paths", async () => {
@@ -110,7 +126,8 @@ test("fails safely on dangerous parent traversal paths", async () => {
 
   const result = await inspectGameZip(zipBytes);
 
-  assert.equal(result.success, false);
+  assert.equal(result.passed, false);
+  assert.ok(result.error);
   assert.equal(result.error.code, "dangerous_zip_entry");
 });
 
@@ -123,7 +140,8 @@ test("fails safely on Windows and mixed-separator traversal paths", async () => 
 
   const result = await inspectGameZip(zipBytes);
 
-  assert.equal(result.success, false);
+  assert.equal(result.passed, false);
+  assert.ok(result.error);
   assert.equal(result.error.code, "dangerous_zip_entry");
 });
 
@@ -137,7 +155,8 @@ test("rejects excessive entry counts", async () => {
     maxEntries: 1,
   });
 
-  assert.equal(result.success, false);
+  assert.equal(result.passed, false);
+  assert.ok(result.error);
   assert.equal(result.error.code, "resource_limit_exceeded");
 });
 
@@ -151,14 +170,16 @@ test("rejects excessive single-file and total uncompressed sizes", async () => {
   const singleFileResult = await inspectGameZip(zipBytes, {
     maxFileBytes: 16,
   });
-  assert.equal(singleFileResult.success, false);
+  assert.equal(singleFileResult.passed, false);
+  assert.ok(singleFileResult.error);
   assert.equal(singleFileResult.error.code, "resource_limit_exceeded");
 
   const totalSizeResult = await inspectGameZip(zipBytes, {
     maxTotalUncompressedBytes: 80,
     maxFileBytes: 1024,
   });
-  assert.equal(totalSizeResult.success, false);
+  assert.equal(totalSizeResult.passed, false);
+  assert.ok(totalSizeResult.error);
   assert.equal(totalSizeResult.error.code, "resource_limit_exceeded");
 });
 
@@ -170,7 +191,8 @@ test("rejects excessive directory depth and path length", async () => {
   const deepResult = await inspectGameZip(deepZipBytes, {
     maxDirectoryDepth: 1,
   });
-  assert.equal(deepResult.success, false);
+  assert.equal(deepResult.passed, false);
+  assert.ok(deepResult.error);
   assert.equal(deepResult.error.code, "resource_limit_exceeded");
 
   const longPathZipBytes = await createZip({
@@ -180,7 +202,8 @@ test("rejects excessive directory depth and path length", async () => {
   const longPathResult = await inspectGameZip(longPathZipBytes, {
     maxPathLength: 50,
   });
-  assert.equal(longPathResult.success, false);
+  assert.equal(longPathResult.passed, false);
+  assert.ok(longPathResult.error);
   assert.equal(longPathResult.error.code, "resource_limit_exceeded");
 });
 
@@ -193,7 +216,8 @@ test("returns a timeout error when analysis exceeds the configured deadline", as
     maxProcessingMs: -1,
   });
 
-  assert.equal(result.success, false);
+  assert.equal(result.passed, false);
+  assert.ok(result.error);
   assert.equal(result.error.code, "analysis_timeout");
 });
 
@@ -203,14 +227,14 @@ test("requires root index.html after unwrapping a single top-level directory", a
   });
 
   const analysisResult = await inspectGameZip(zipBytes);
-  assert.equal(analysisResult.success, true);
-  assert.equal(analysisResult.data.passed, true);
+  assert.equal(analysisResult.passed, true);
 
   const result = await inspectGameZip(zipBytes, {
     requireRootIndexHtml: true,
   });
 
-  assert.equal(result.success, false);
+  assert.equal(result.passed, false);
+  assert.ok(result.error);
   assert.equal(result.error.code, "missing_index_html");
 });
 
@@ -223,8 +247,24 @@ test("accepts mixed-case root index names when root index is required", async ()
     requireRootIndexHtml: true,
   });
 
-  assert.equal(result.success, true);
-  assert.equal(result.data.passed, true);
+  assert.equal(result.passed, true);
+});
+
+test("default limits reject resource exhaustion style ZIPs", async () => {
+  const files: Record<string, string> = {
+    "index.html": "<html></html>",
+  };
+
+  for (let i = 1; i <= 501; i += 1) {
+    files[`spam/${String(i).padStart(4, "0")}.html`] = "<html></html>";
+  }
+
+  const zipBytes = await createZip(files);
+  const result = await inspectGameZip(zipBytes);
+
+  assert.equal(result.passed, false);
+  assert.ok(result.error);
+  assert.equal(result.error.code, "resource_limit_exceeded");
 });
 
 async function createZip(files: Record<string, string>): Promise<Uint8Array> {

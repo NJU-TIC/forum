@@ -7,6 +7,7 @@ import { Result } from "@/types/common/result";
 import { SGame } from "@/schema/game";
 import {
   createHtmlZipValidationError,
+  hasGameZipAnalysisError,
   inspectGameZip,
   type UploadGameActionError,
 } from "@/lib/validation/game-zip";
@@ -84,21 +85,21 @@ export async function uploadGameAction(
   const inspectionResult = await inspectGameZip(zipBuffer, {
     requireRootIndexHtml: true,
   });
-  if (!inspectionResult.success) {
+  if (hasGameZipAnalysisError(inspectionResult)) {
     return {
       success: false,
       error: inspectionResult.error,
     };
   }
 
-  if (!inspectionResult.data.passed) {
+  if (!inspectionResult.passed) {
     return {
       success: false,
-      error: createHtmlZipValidationError(inspectionResult.data.violations),
+      error: createHtmlZipValidationError(inspectionResult.violations),
     };
   }
 
-  const { entries } = inspectionResult.data;
+  const { entries } = inspectionResult;
 
   // Save game metadata to database first
   const newGame = await createGame({
