@@ -9,20 +9,10 @@ const JAVASCRIPT_PROTOCOL_ATTRS = new Set(["href", "src", "action", "formaction"
 const ALLOWED_SCRIPT_TYPES = new Set(["application/json", "application/ld+json"]);
 
 export const DEFAULT_GAME_ZIP_LIMITS = {
-  maxEntries: 500,
-  maxTotalUncompressedBytes: 8 * 1024 * 1024,
-  maxFileBytes: 2 * 1024 * 1024,
-  maxDirectoryDepth: 32,
-  maxPathLength: 260,
-  maxProcessingMs: 5000,
+  maxProcessingMs: 30000,
 } as const;
 
 export interface GameZipLimits {
-  maxEntries: number;
-  maxTotalUncompressedBytes: number;
-  maxFileBytes: number;
-  maxDirectoryDepth: number;
-  maxPathLength: number;
   maxProcessingMs: number;
   requireRootIndexHtml?: boolean;
 }
@@ -102,12 +92,7 @@ export type UploadGameActionError =
   | GameZipAnalysisError
   | HtmlZipValidationError;
 
-interface ZipEntrySizeData {
-  uncompressedSize?: number;
-}
-
 interface ZipEntryWithSize extends JSZipObject {
-  _data?: ZipEntrySizeData;
   unsafeOriginalName?: string;
 }
 
@@ -201,15 +186,7 @@ export async function inspectGameZip(
   }
 
   const zipEntries = Object.entries(zip.files);
-  if (zipEntries.length > limits.maxEntries) {
-    return createAnalysisError(
-      "resource_limit_exceeded",
-      `ZIP 条目数量超限，最多允许 ${limits.maxEntries} 个`,
-    );
-  }
-
   const entries: GameZipEntry[] = [];
-  let totalUncompressedBytes = 0;
 
   for (const [rawPath, zipEntry] of zipEntries) {
     const timeError = getTimeoutError(deadline);
@@ -218,7 +195,7 @@ export async function inspectGameZip(
     }
 
     const originalPath = (zipEntry as ZipEntryWithSize).unsafeOriginalName ?? rawPath;
-    const normalizedPathResult = normalizeZipEntryPath(originalPath, zipEntry.dir, limits);
+    const normalizedPathResult = normalizeZipEntryPath(originalPath);
     if (!normalizedPathResult.ok) {
       return {
         passed: false,
@@ -230,15 +207,6 @@ export async function inspectGameZip(
     const normalizedPath = normalizedPathResult.data;
     if (zipEntry.dir) {
       continue;
-    }
-
-    const sizeHint = getUncompressedSizeHint(zipEntry);
-    if (typeof sizeHint === "number" && sizeHint > limits.maxFileBytes) {
-      return createAnalysisError(
-        "resource_limit_exceeded",
-        `文件 "${normalizedPath}" 大小超限，单文件最大允许 ${formatMiB(limits.maxFileBytes)}MB`,
-        normalizedPath,
-      );
     }
 
     let fileData: Uint8Array;
@@ -258,22 +226,6 @@ export async function inspectGameZip(
         readTimeoutError.code,
         readTimeoutError.message,
         readTimeoutError.file,
-      );
-    }
-
-    if (fileData.byteLength > limits.maxFileBytes) {
-      return createAnalysisError(
-        "resource_limit_exceeded",
-        `文件 "${normalizedPath}" 大小超限，单文件最大允许 ${formatMiB(limits.maxFileBytes)}MB`,
-        normalizedPath,
-      );
-    }
-
-    totalUncompressedBytes += fileData.byteLength;
-    if (totalUncompressedBytes > limits.maxTotalUncompressedBytes) {
-      return createAnalysisError(
-        "resource_limit_exceeded",
-        `ZIP 解压后的总大小超限，最大允许 ${formatMiB(limits.maxTotalUncompressedBytes)}MB`,
       );
     }
 
@@ -489,8 +441,6 @@ export function hasRootIndexHtml(entries: Pick<GameZipEntry, "path">[]): boolean
 
 function normalizeZipEntryPath(
   rawPath: string,
-  isDirectory: boolean,
-  limits: GameZipLimits,
 ): PathNormalizationResult {
   if (!rawPath) {
     return dangerousZipEntry("ZIP 条目路径为空");
@@ -525,23 +475,6 @@ function normalizeZipEntryPath(
   }
 
   const normalizedPath = normalizedSegments.join("/");
-  const directoryDepth = Math.max(0, normalizedSegments.length - (isDirectory ? 0 : 1));
-
-  if (directoryDepth > limits.maxDirectoryDepth) {
-    return createPathNormalizationError(
-      "resource_limit_exceeded",
-      `ZIP 条目 "${normalizedPath}" 的目录深度超限，最大允许 ${limits.maxDirectoryDepth} 层`,
-      normalizedPath,
-    );
-  }
-
-  if (normalizedPath.length > limits.maxPathLength) {
-    return createPathNormalizationError(
-      "resource_limit_exceeded",
-      `ZIP 条目路径 "${normalizedPath}" 长度超限，最大允许 ${limits.maxPathLength} 个字符`,
-      normalizedPath,
-    );
-  }
 
   return {
     ok: true,
@@ -568,15 +501,6 @@ function createPathNormalizationError(
       file,
     },
   };
-}
-
-function getUncompressedSizeHint(zipEntry: JSZipObject): number | undefined {
-  const hintedSize = (zipEntry as ZipEntryWithSize)._data?.uncompressedSize;
-  return typeof hintedSize === "number" ? hintedSize : undefined;
-}
-
-function formatMiB(bytes: number): string {
-  return String(bytes / (1024 * 1024));
 }
 
 function getTimeoutError(deadline: number): GameZipAnalysisError | null {

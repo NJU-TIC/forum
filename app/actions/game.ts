@@ -12,7 +12,7 @@ import {
   type UploadGameActionError,
 } from "@/lib/validation/game-zip";
 
-const MAX_ZIP_BYTES = 50 * 1024 * 1024; // 50 MB
+const MAX_ZIP_BYTES = 500 * 1024 * 1024; // 500 MB
 
 // MIME type lookup for common web file extensions
 const MIME_TYPES: Record<string, string> = {

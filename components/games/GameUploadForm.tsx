@@ -107,7 +107,7 @@ export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
           htmlFor="zipFile"
           className="block text-sm font-medium text-gray-700 mb-2"
         >
-          Game Files (ZIP, max 50MB)
+          Game Files (ZIP, max 500MB)
         </label>
         <input
           id="zipFile"
