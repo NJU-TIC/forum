@@ -5,10 +5,14 @@ import { uploadGameFiles, deleteGameFiles } from "@/lib/cos";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { Result } from "@/types/common/result";
 import { SGame } from "@/schema/game";
-import JSZip from "jszip";
+import {
+  createHtmlZipValidationError,
+  hasGameZipAnalysisError,
+  inspectGameZip,
+  type UploadGameActionError,
+} from "@/lib/validation/game-zip";
 
-const MAX_ZIP_BYTES = 50 * 1024 * 1024; // 50 MB
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB per file
+const MAX_ZIP_BYTES = 500 * 1024 * 1024; // 500 MB
 
 // MIME type lookup for common web file extensions
 const MIME_TYPES: Record<string, string> = {
@@ -45,16 +49,9 @@ function getContentType(filePath: string): string {
   return MIME_TYPES[ext] || "application/octet-stream";
 }
 
-function isHiddenOrSystemPath(filePath: string): boolean {
-  const parts = filePath.split("/");
-  return parts.some(
-    (part) => part.startsWith(".") || part === "__MACOSX" || part === "Thumbs.db",
-  );
-}
-
 export async function uploadGameAction(
   formData: FormData,
-): Promise<Result<{ game: SGame }>> {
+): Promise<Result<{ game: SGame }, UploadGameActionError>> {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
 
   if (!currentUser) {
@@ -84,57 +81,25 @@ export async function uploadGameAction(
     };
   }
 
-  // Extract ZIP
-  let zip: JSZip;
-  try {
-    const buffer = Buffer.from(await zipFile.arrayBuffer());
-    zip = await JSZip.loadAsync(buffer);
-  } catch {
-    return { success: false, error: "Invalid ZIP file" };
-  }
-
-  // Collect files, skip hidden/system files and directories
-  const entries: { path: string; data: Buffer }[] = [];
-  const zipEntries = Object.entries(zip.files);
-
-  for (const [relativePath, zipEntry] of zipEntries) {
-    if (zipEntry.dir) continue;
-    if (isHiddenOrSystemPath(relativePath)) continue;
-
-    const data = await zipEntry.async("nodebuffer");
-    if (data.length > MAX_FILE_BYTES) {
-      return {
-        success: false,
-        error: `File "${relativePath}" is too large (max ${MAX_FILE_BYTES / (1024 * 1024)}MB per file)`,
-      };
-    }
-
-    entries.push({ path: relativePath, data });
-  }
-
-  if (entries.length === 0) {
-    return { success: false, error: "ZIP file contains no files" };
-  }
-
-  // Unwrap single top-level directory if present
-  const topDirs = new Set(
-    entries.map((e) => e.path.split("/")[0]),
-  );
-  if (topDirs.size === 1 && !entries.some((e) => e.path.split("/").length === 1)) {
-    // All files are under a single top-level directory — unwrap it
-    const prefix = [...topDirs][0] + "/";
-    for (const entry of entries) {
-      entry.path = entry.path.slice(prefix.length);
-    }
-  }
-
-  // Validate index.html exists
-  if (!entries.some((e) => e.path === "index.html" || e.path === "index.htm")) {
+  const zipBuffer = Buffer.from(await zipFile.arrayBuffer());
+  const inspectionResult = await inspectGameZip(zipBuffer, {
+    requireRootIndexHtml: true,
+  });
+  if (hasGameZipAnalysisError(inspectionResult)) {
     return {
       success: false,
-      error: "ZIP must contain an index.html (or index.htm) at the root level",
+      error: inspectionResult.error,
     };
   }
+
+  if (!inspectionResult.passed) {
+    return {
+      success: false,
+      error: createHtmlZipValidationError(inspectionResult.violations),
+    };
+  }
+
+  const { entries } = inspectionResult;
 
   // Save game metadata to database first
   const newGame = await createGame({
