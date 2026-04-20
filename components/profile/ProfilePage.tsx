@@ -10,7 +10,7 @@ import { UsernameForm } from "./UsernameForm";
 
 interface ProfilePageProps {
   user: SUser;
-  posts: SPost[];
+  posts: (SPost & { postTotalScore?: number; currentUserScore?: number })[];
 }
 
 const profileDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -89,7 +89,12 @@ export function ProfilePage({ user, posts }: ProfilePageProps) {
                     ...post,
                     author: user,
                     createdAt: new Date(post.createdAt),
-                  } as SPost & { author: SUser; createdAt: Date }
+                  } as SPost & {
+                    author: SUser;
+                    createdAt: Date;
+                    postTotalScore?: number;
+                    currentUserScore?: number;
+                  }
                 }
               />
             ))}

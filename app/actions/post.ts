@@ -5,6 +5,8 @@ import {
   togglePostLike as togglePostLikeInDb,
   togglePostForward as togglePostForwardInDb,
   addCommentToPost as addCommentToPostInDb,
+  setUserPostScore,
+  getPostTotalScores,
   updatePostContent,
   findPostById,
   fetchAuthorsByIds,
@@ -18,6 +20,7 @@ import { fileTypeFromBuffer } from "file-type";
 import { Result } from "@/types/common/result";
 import { PostComment, SPost } from "@/schema/post";
 import { SUser } from "@/schema/user";
+import { MAX_GAME_SCORE, MIN_GAME_SCORE } from "@/lib/scoring";
 
 const ALLOWED_IMAGE_MIME = [
   "image/jpeg",
@@ -238,6 +241,52 @@ export async function addCommentAction(
   return {
     success: true,
     data: { comments: populatedComments },
+  };
+}
+
+export async function setPostScoreAction(
+  postId: string,
+  score: number,
+): Promise<
+  Result<{
+    score: number;
+    postTotalScore: number;
+    allocatedScore: number;
+    remainingScore: number;
+  }>
+> {
+  const currentUser = await requireAuthenticatedUser().catch(() => null);
+
+  if (!currentUser) {
+    return { success: false, error: "You must be logged in to score posts" };
+  }
+
+  if (!Number.isInteger(score)) {
+    return { success: false, error: "Score must be an integer" };
+  }
+
+  if (score < MIN_GAME_SCORE || score > MAX_GAME_SCORE) {
+    return {
+      success: false,
+      error: `Score must be between ${MIN_GAME_SCORE} and ${MAX_GAME_SCORE}`,
+    };
+  }
+
+  const updateResult = await setUserPostScore(currentUser.id, postId, score);
+  if (!updateResult.success) {
+    return updateResult;
+  }
+
+  const postTotalScoreMap = await getPostTotalScores([postId]);
+
+  return {
+    success: true,
+    data: {
+      score: updateResult.data.score,
+      allocatedScore: updateResult.data.allocatedScore,
+      remainingScore: updateResult.data.remainingScore,
+      postTotalScore: postTotalScoreMap.get(postId) ?? 0,
+    },
   };
 }
 

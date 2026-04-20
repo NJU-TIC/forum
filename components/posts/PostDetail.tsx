@@ -8,6 +8,7 @@ import { PostInteractions } from "./PostInteractions";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { PostHeader } from "./PostHeader";
 import { detailDateFormatter } from "@/lib/formatters";
+import { PostScoreControl } from "./PostScoreControl";
 
 type PopulatedPostComment = Omit<OriginalPostComment, "author"> & {
   author: SUser | null;
@@ -15,6 +16,8 @@ type PopulatedPostComment = Omit<OriginalPostComment, "author"> & {
 
 type PopulatedQPost = Omit<SPost, "author" | "interactions"> & {
   author: SUser;
+  postTotalScore: number;
+  currentUserScore: number;
   interactions: {
     comments: PopulatedPostComment[];
     likes: string[];
@@ -25,9 +28,14 @@ type PopulatedQPost = Omit<SPost, "author" | "interactions"> & {
 interface PostDetailProps {
   post: PopulatedQPost;
   currentUserId?: string;
+  initialRemainingScore: number;
 }
 
-export function PostDetail({ post, currentUserId }: PostDetailProps) {
+export function PostDetail({
+  post,
+  currentUserId,
+  initialRemainingScore,
+}: PostDetailProps) {
   const [comments, setComments] = useState<PopulatedPostComment[]>(
     post.interactions?.comments || [],
   );
@@ -77,6 +85,22 @@ export function PostDetail({ post, currentUserId }: PostDetailProps) {
                   className="w-full rounded-lg border object-cover"
                 />
               ))}
+            </div>
+          )}
+
+          {currentUserId ? (
+            <PostScoreControl
+              postId={post._id.toString()}
+              initialScore={post.currentUserScore}
+              initialTotalScore={post.postTotalScore}
+              initialRemainingScore={initialRemainingScore}
+            />
+          ) : (
+            <div className="text-sm text-gray-600">
+              总分：{" "}
+              <span className="font-semibold text-gray-900">
+                {post.postTotalScore}
+              </span>
             </div>
           )}
 

@@ -9,16 +9,24 @@ import { PostInteractions } from "./PostInteractions";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { PostHeader } from "./PostHeader";
 import { cardDateFormatter } from "@/lib/formatters";
+import { PostScoreControl } from "./PostScoreControl";
 
 interface PostCardProps {
   post: SPost & {
     author: SUser;
     createdAt: Date;
+    postTotalScore?: number;
+    currentUserScore?: number;
   };
   currentUserId?: string;
+  initialRemainingScore?: number;
 }
 
-export function PostCard({ post, currentUserId }: PostCardProps) {
+export function PostCard({
+  post,
+  currentUserId,
+  initialRemainingScore = 0,
+}: PostCardProps) {
   const router = useRouter();
   const contentRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -59,6 +67,25 @@ export function PostCard({ post, currentUserId }: PostCardProps) {
         >
           <MarkdownRenderer content={post.body.content} />
         </div>
+
+        {currentUserId ? (
+          <PostScoreControl
+            postId={post._id}
+            initialScore={post.currentUserScore ?? 0}
+            initialTotalScore={post.postTotalScore ?? 0}
+            initialRemainingScore={initialRemainingScore}
+          />
+        ) : (
+          <div
+            className="text-sm text-gray-600"
+            onClick={(event) => event.stopPropagation()}
+          >
+            总分：
+            <span className="font-semibold text-gray-900">
+              {post.postTotalScore ?? 0}
+            </span>
+          </div>
+        )}
 
         <PostInteractions
           postId={post._id}

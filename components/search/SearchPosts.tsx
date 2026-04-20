@@ -10,10 +10,18 @@ interface SearchPostsProps {
   posts: (SPost & {
     author: SUser;
     createdAt: Date;
+    postTotalScore?: number;
+    currentUserScore?: number;
   })[];
+  currentUserId?: string;
+  initialRemainingScore?: number;
 }
 
-export function SearchPosts({ posts }: SearchPostsProps) {
+export function SearchPosts({
+  posts,
+  currentUserId,
+  initialRemainingScore = 0,
+}: SearchPostsProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "mostLiked">(
     "newest",
@@ -101,7 +109,12 @@ export function SearchPosts({ posts }: SearchPostsProps) {
       ) : (
         <div>
           {filteredAndSortedPosts.map((post) => (
-            <PostCard key={post._id} post={post} />
+            <PostCard
+              key={post._id}
+              post={post}
+              currentUserId={currentUserId}
+              initialRemainingScore={initialRemainingScore}
+            />
           ))}
         </div>
       )}

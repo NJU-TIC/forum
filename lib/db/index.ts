@@ -6,10 +6,34 @@ import { Document, ObjectId, UpdateFilter, MongoServerError } from "mongodb";
 import { QUser, SUser } from "@/schema/user";
 import { Post, PostComment, QPost, SPost } from "@/schema/post";
 import { Result } from "@/types/common/result";
-import { json } from "node:stream/consumers";
+import { SCORE_BUDGET } from "@/lib/scoring";
 
 type AuthorMap = Map<string, SUser>;
 type InteractionPath = "interactions.likes" | "interactions.forwards";
+
+function normalizePostScores(user: Document | null | undefined): Record<string, number> {
+  if (!user || !user.postScores || typeof user.postScores !== "object") {
+    return {};
+  }
+
+  return Object.entries(user.postScores as Record<string, unknown>).reduce<Record<string, number>>(
+    (acc, [postId, rawScore]) => {
+      if (
+        typeof rawScore === "number" &&
+        Number.isInteger(rawScore) &&
+        rawScore >= 0
+      ) {
+        acc[postId] = rawScore;
+      }
+      return acc;
+    },
+    {},
+  );
+}
+
+function sumPostScores(scores: Record<string, number>): number {
+  return Object.values(scores).reduce((sum, score) => sum + score, 0);
+}
 
 export async function fetchAuthorsByIds(
   authorIds: string[],
@@ -169,7 +193,19 @@ async function toggleUserInteraction(
 
 // User operations
 export async function createUser(userData: unknown): Promise<SUser> {
-  const validatedUser = validateUser(userData);
+  const userInput =
+    userData && typeof userData === "object"
+      ? (userData as Record<string, unknown>)
+      : {};
+  const validatedUser = validateUser({
+    ...userInput,
+    postScores:
+      userInput.postScores &&
+      typeof userInput.postScores === "object" &&
+      !Array.isArray(userInput.postScores)
+        ? userInput.postScores
+        : {},
+  });
 
   const usersCollection = await getCollection<QUser>("users");
   const result = await usersCollection.insertOne(validatedUser as QUser);
@@ -225,6 +261,192 @@ export async function findAllUsers(): Promise<SUser[]> {
       };
     })
     .filter((user) => user !== null);
+}
+
+export async function getUserPostScoreSummary(userId: string): Promise<{
+  scores: Record<string, number>;
+  allocatedScore: number;
+  remainingScore: number;
+} | null> {
+  const usersCollection = await getCollection<QUser>("users");
+  const user = await usersCollection.findOne(
+    { _id: new ObjectId(userId) },
+    { projection: { postScores: 1 } },
+  );
+
+  if (!user) {
+    return null;
+  }
+
+  const postScores = normalizePostScores(user);
+  const allocatedScore = sumPostScores(postScores);
+
+  return {
+    scores: postScores,
+    allocatedScore,
+    remainingScore: SCORE_BUDGET - allocatedScore,
+  };
+}
+
+export async function getPostTotalScores(
+  postIds?: string[],
+): Promise<Map<string, number>> {
+  const usersCollection = await getCollection<QUser>("users");
+  const pipeline: Document[] = [
+    {
+      $project: {
+        scoreEntries: {
+          $objectToArray: { $ifNull: ["$postScores", {}] },
+        },
+      },
+    },
+    { $unwind: "$scoreEntries" },
+  ];
+
+  if (postIds && postIds.length > 0) {
+    pipeline.push({
+      $match: {
+        "scoreEntries.k": { $in: postIds },
+      },
+    });
+  }
+
+  pipeline.push({
+    $group: {
+      _id: "$scoreEntries.k",
+      totalScore: { $sum: "$scoreEntries.v" },
+    },
+  });
+
+  const aggregatedScores = await usersCollection.aggregate(pipeline).toArray();
+
+  return aggregatedScores.reduce<Map<string, number>>((map, entry) => {
+    map.set(entry._id as string, entry.totalScore as number);
+    return map;
+  }, new Map());
+}
+
+export async function setUserPostScore(
+  userId: string,
+  postId: string,
+  nextScore: number,
+): Promise<
+  Result<{
+    score: number;
+    allocatedScore: number;
+    remainingScore: number;
+  }>
+> {
+  const usersCollection = await getCollection<QUser>("users");
+  const postsCollection = await getCollection<QPost>("posts");
+  const postExists = await postsCollection.findOne(
+    { _id: new ObjectId(postId) },
+    { projection: { _id: 1 } },
+  );
+  if (!postExists) {
+    return { success: false, error: "Post not found" };
+  }
+
+  const postScoreField = `postScores.${postId}`;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const existingUser = await usersCollection.findOne(
+      { _id: new ObjectId(userId) },
+      { projection: { postScores: 1 } },
+    );
+
+    if (!existingUser) {
+      return { success: false, error: "User not found" };
+    }
+
+    const existingScores = normalizePostScores(existingUser);
+    const currentScore = existingScores[postId] ?? 0;
+    const delta = nextScore - currentScore;
+    const nextAllocatedScore = sumPostScores(existingScores) + delta;
+
+    if (nextAllocatedScore > SCORE_BUDGET) {
+      return {
+        success: false,
+        error: `Total allocated score cannot exceed ${SCORE_BUDGET}`,
+      };
+    }
+
+    if (delta === 0) {
+      return {
+        success: true,
+        data: {
+          score: currentScore,
+          allocatedScore: sumPostScores(existingScores),
+          remainingScore: SCORE_BUDGET - sumPostScores(existingScores),
+        },
+      };
+    }
+
+    const scoreConsistencyFilter =
+      currentScore === 0
+        ? {
+            $or: [
+              { [postScoreField]: { $exists: false } },
+              { [postScoreField]: 0 },
+            ],
+          }
+        : { [postScoreField]: currentScore };
+
+    const updateResult = await usersCollection.findOneAndUpdate(
+      {
+        _id: new ObjectId(userId),
+        ...scoreConsistencyFilter,
+        $expr: {
+          $lte: [
+            {
+              $add: [
+                {
+                  $sum: {
+                    $map: {
+                      input: { $objectToArray: { $ifNull: ["$postScores", {}] } },
+                      as: "entry",
+                      in: "$$entry.v",
+                    },
+                  },
+                },
+                delta,
+              ],
+            },
+            SCORE_BUDGET,
+          ],
+        },
+      },
+      {
+        $inc: { [postScoreField]: delta },
+        $set: { updatedAt: new Date() },
+      } as UpdateFilter<QUser>,
+      {
+        returnDocument: "after",
+        projection: { postScores: 1 },
+      },
+    );
+
+    if (!updateResult) {
+      continue;
+    }
+
+    const postScores = normalizePostScores(updateResult);
+    const allocatedScore = sumPostScores(postScores);
+
+    return {
+      success: true,
+      data: {
+        score: postScores[postId] ?? 0,
+        allocatedScore,
+        remainingScore: SCORE_BUDGET - allocatedScore,
+      },
+    };
+  }
+
+  return {
+    success: false,
+    error: "Score update conflict, please retry",
+  };
 }
 
 export async function updateUserById(
