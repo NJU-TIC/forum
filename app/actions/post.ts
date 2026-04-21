@@ -20,7 +20,7 @@ import { fileTypeFromBuffer } from "file-type";
 import { Result } from "@/types/common/result";
 import { PostComment, SPost } from "@/schema/post";
 import { SUser } from "@/schema/user";
-import { MAX_GAME_SCORE, MIN_GAME_SCORE } from "@/lib/scoring";
+import { MIN_GAME_SCORE, SCORE_BUDGET } from "@/lib/scoring";
 
 const ALLOWED_IMAGE_MIME = [
   "image/jpeg",
@@ -265,10 +265,10 @@ export async function setPostScoreAction(
     return { success: false, error: "Score must be an integer" };
   }
 
-  if (score < MIN_GAME_SCORE || score > MAX_GAME_SCORE) {
+  if (score < MIN_GAME_SCORE || score > SCORE_BUDGET) {
     return {
       success: false,
-      error: `Score must be between ${MIN_GAME_SCORE} and ${MAX_GAME_SCORE}`,
+      error: `Score must be between ${MIN_GAME_SCORE} and ${SCORE_BUDGET}`,
     };
   }
 

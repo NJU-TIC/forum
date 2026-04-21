@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { setPostScoreAction } from "@/app/actions/post";
-import { MAX_GAME_SCORE, MIN_GAME_SCORE } from "@/lib/scoring";
+import { MIN_GAME_SCORE, SCORE_BUDGET } from "@/lib/scoring";
 import { toast } from "sonner";
 
 const SCORE_SYNC_EVENT = "post-score-updated";
@@ -55,7 +55,7 @@ export function PostScoreControl({
 
   const handleScoreChange = (nextScoreRaw: number) => {
     const nextScore = Number.isInteger(nextScoreRaw) ? nextScoreRaw : score;
-    if (nextScore < MIN_GAME_SCORE || nextScore > MAX_GAME_SCORE) {
+    if (nextScore < MIN_GAME_SCORE || nextScore > SCORE_BUDGET) {
       return;
     }
 
@@ -111,7 +111,7 @@ export function PostScoreControl({
         <input
           type="range"
           min={MIN_GAME_SCORE}
-          max={MAX_GAME_SCORE}
+          max={SCORE_BUDGET}
           step={1}
           value={score}
           disabled={isPending}
@@ -121,7 +121,7 @@ export function PostScoreControl({
         <input
           type="number"
           min={MIN_GAME_SCORE}
-          max={MAX_GAME_SCORE}
+          max={SCORE_BUDGET}
           step={1}
           value={score}
           disabled={isPending}
