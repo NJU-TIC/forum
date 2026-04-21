@@ -1,6 +1,17 @@
 import JSZip, { type JSZipObject } from "jszip";
 import { parse } from "parse5";
 import type { DefaultTreeAdapterMap } from "parse5";
+import {
+  MAX_MODEL_WEIGHT_TOTAL_BYTES,
+  formatMegabytes,
+  isModelWeightFile,
+} from "@/lib/validation/model-weight";
+
+export {
+  MAX_MODEL_WEIGHT_TOTAL_BYTES,
+  MODEL_WEIGHT_EXTENSIONS,
+  isModelWeightFile,
+} from "@/lib/validation/model-weight";
 
 type Element = DefaultTreeAdapterMap["element"];
 
@@ -74,12 +85,20 @@ export type GameZipAnalysisErrorCode =
   | "resource_limit_exceeded"
   | "analysis_timeout"
   | "missing_index_html"
-  | "invalid_html_file";
+  | "invalid_html_file"
+  | "model_weight_total_too_large";
+
+export interface ModelWeightOversizeDetails {
+  totalBytes: number;
+  limitBytes: number;
+  files: { path: string; bytes: number }[];
+}
 
 export interface GameZipAnalysisError {
   code: GameZipAnalysisErrorCode;
   message: string;
   file?: string;
+  modelWeightDetails?: ModelWeightOversizeDetails;
 }
 
 export type HtmlZipValidationError = HtmlZipAnalysisViolationResult & {
@@ -121,6 +140,7 @@ function createAnalysisError(
   code: GameZipAnalysisErrorCode,
   message: string,
   file?: string,
+  extra?: Pick<GameZipAnalysisError, "modelWeightDetails">,
 ): HtmlZipAnalysisErrorResult {
   return {
     passed: false,
@@ -129,8 +149,18 @@ function createAnalysisError(
       code,
       message,
       file,
+      ...extra,
     },
   };
+}
+
+export function createModelWeightTotalTooLargeError(
+  details: ModelWeightOversizeDetails,
+): HtmlZipAnalysisErrorResult {
+  const message = `ZIP 中 AI 模型权重文件合计 ${formatMegabytes(details.totalBytes)}，超过上限 ${formatMegabytes(details.limitBytes)}`;
+  return createAnalysisError("model_weight_total_too_large", message, undefined, {
+    modelWeightDetails: details,
+  });
 }
 
 export function createHtmlZipValidationError(
@@ -246,6 +276,11 @@ export async function inspectGameZip(
       "missing_index_html",
       "ZIP 根目录必须包含 index.html 或 index.htm",
     );
+  }
+
+  const weightCheck = checkModelWeightTotalSize(entries);
+  if (weightCheck) {
+    return createModelWeightTotalTooLargeError(weightCheck);
   }
 
   const violations: GameZipViolation[] = [];
@@ -437,6 +472,26 @@ function unwrapSingleTopLevelDirectory(entries: GameZipEntry[]): void {
 
 export function hasRootIndexHtml(entries: Pick<GameZipEntry, "path">[]): boolean {
   return entries.some((entry) => /^index\.html?$/i.test(entry.path));
+}
+
+// Returns details when the cumulative size of AI model weight files inside
+// the ZIP exceeds MAX_MODEL_WEIGHT_TOTAL_BYTES; otherwise returns null.
+export function checkModelWeightTotalSize(
+  entries: { path: string; data: Buffer | Uint8Array }[],
+  limitBytes: number = MAX_MODEL_WEIGHT_TOTAL_BYTES,
+): ModelWeightOversizeDetails | null {
+  let totalBytes = 0;
+  const files: { path: string; bytes: number }[] = [];
+
+  for (const entry of entries) {
+    if (!isModelWeightFile(entry.path)) continue;
+    const bytes = entry.data.byteLength;
+    totalBytes += bytes;
+    files.push({ path: entry.path, bytes });
+  }
+
+  if (totalBytes <= limitBytes) return null;
+  return { totalBytes, limitBytes, files };
 }
 
 function normalizeZipEntryPath(
