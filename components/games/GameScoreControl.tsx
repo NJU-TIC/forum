@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { setGameScoreAction } from "@/app/actions/game";
 import { MIN_GAME_SCORE, SCORE_BUDGET } from "@/lib/scoring";
 import { toast } from "sonner";
@@ -25,7 +25,9 @@ export function GameScoreControl({
   const [score, setScore] = useState(initialScore);
   const [totalScore, setTotalScore] = useState(initialTotalScore);
   const [remainingScore, setRemainingScore] = useState(initialRemainingScore);
-  const [isPending, startTransition] = useTransition();
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
+  const maxAssignableScore = Math.min(SCORE_BUDGET, score + remainingScore);
 
   useEffect(() => {
     const handleSyncEvent = (event: Event) => {
@@ -54,8 +56,19 @@ export function GameScoreControl({
   }, [gameId]);
 
   const handleScoreChange = (nextScoreRaw: number) => {
+    if (isSavingRef.current) {
+      return;
+    }
+
     const nextScore = Number.isInteger(nextScoreRaw) ? nextScoreRaw : score;
     if (nextScore < MIN_GAME_SCORE || nextScore > SCORE_BUDGET) {
+      return;
+    }
+
+    if (nextScore > maxAssignableScore) {
+      toast.error("超过可分配上限", {
+        description: `当前该作品最高可分配 ${maxAssignableScore} 分`,
+      });
       return;
     }
 
@@ -69,7 +82,10 @@ export function GameScoreControl({
     setTotalScore((prev) => prev + optimisticDelta);
     setRemainingScore((prev) => prev - optimisticDelta);
 
-    startTransition(async () => {
+    isSavingRef.current = true;
+    setIsSaving(true);
+
+    void (async () => {
       const result = await setGameScoreAction(gameId, nextScore);
       if (!result.success) {
         setScore(previousScore);
@@ -92,6 +108,9 @@ export function GameScoreControl({
           },
         }),
       );
+    })().finally(() => {
+      isSavingRef.current = false;
+      setIsSaving(false);
     });
   };
 
@@ -100,6 +119,7 @@ export function GameScoreControl({
       className={className}
       onClick={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
+      onPointerUp={(event) => event.stopPropagation()}
     >
       <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
         <span>
@@ -111,24 +131,27 @@ export function GameScoreControl({
         <input
           type="range"
           min={MIN_GAME_SCORE}
-          max={SCORE_BUDGET}
+          max={maxAssignableScore}
           step={1}
           value={score}
-          disabled={isPending}
+          disabled={isSaving}
           onChange={(event) => handleScoreChange(Number(event.target.value))}
           className="w-full"
         />
         <input
           type="number"
           min={MIN_GAME_SCORE}
-          max={SCORE_BUDGET}
+          max={maxAssignableScore}
           step={1}
           value={score}
-          disabled={isPending}
+          disabled={isSaving}
           onChange={(event) => handleScoreChange(Number(event.target.value))}
           className="w-16 rounded border px-2 py-1 text-sm"
         />
       </div>
+      <p className="mt-1 text-xs text-gray-500">
+        当前此作品最多可分配 {maxAssignableScore} 分
+      </p>
     </div>
   );
 }
