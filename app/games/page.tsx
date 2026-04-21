@@ -1,12 +1,19 @@
 import { findAllGames } from "@/lib/db/game";
-import { findUserById } from "@/lib/db";
+import { findUserById, getGameTotalScores, getUserGameScoreSummary } from "@/lib/db";
 import { GameCard } from "@/components/games/GameCard";
 import { getCurrentUser } from "@/app/actions/auth";
 import Link from "next/link";
 import type { SGame } from "@/schema/game";
 import type { SUser } from "@/schema/user";
+import { SCORE_BUDGET } from "@/lib/scoring";
 
-type PopulatedGame = SGame & { author: SUser; createdAt: Date };
+type PopulatedGame = SGame & {
+  author: SUser;
+  createdAt: Date;
+  gameTotalScore: number;
+  currentUserScore: number;
+  currentUserRemainingScore: number;
+};
 
 async function populateGamesWithAuthors(
   games: SGame[],
@@ -34,6 +41,9 @@ async function populateGamesWithAuthors(
         ...game,
         author,
         createdAt: new Date(game.createdAt),
+        gameTotalScore: 0,
+        currentUserScore: 0,
+        currentUserRemainingScore: SCORE_BUDGET,
       };
     })
     .filter((game): game is PopulatedGame => game !== null);
@@ -43,6 +53,17 @@ export default async function GamesPage() {
   const games = await findAllGames();
   const populatedGames = await populateGamesWithAuthors(games);
   const currentUser = await getCurrentUser();
+  const gameIds = populatedGames.map((game) => game._id);
+  const [gameTotalScoreMap, currentUserScoreSummary] = await Promise.all([
+    getGameTotalScores(gameIds),
+    currentUser ? getUserGameScoreSummary(currentUser.id) : null,
+  ]);
+  const populatedGamesWithScores = populatedGames.map((game) => ({
+    ...game,
+    gameTotalScore: gameTotalScoreMap.get(game._id) ?? 0,
+    currentUserScore: currentUserScoreSummary?.scores[game._id] ?? 0,
+    currentUserRemainingScore: currentUserScoreSummary?.remainingScore ?? SCORE_BUDGET,
+  }));
   const isLoggedIn = !!currentUser;
 
   return (
@@ -58,8 +79,14 @@ export default async function GamesPage() {
           </Link>
         )}
       </div>
+      {isLoggedIn && (
+        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          评分预算：已分配 {currentUserScoreSummary?.allocatedScore ?? 0}/{SCORE_BUDGET}
+          ，剩余 {currentUserScoreSummary?.remainingScore ?? SCORE_BUDGET}
+        </div>
+      )}
 
-      {populatedGames.length === 0 ? (
+      {populatedGamesWithScores.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500 text-lg">
             No games yet. Be the first to upload one!
@@ -67,8 +94,13 @@ export default async function GamesPage() {
         </div>
       ) : (
         <div>
-          {populatedGames.map((game) => (
-            <GameCard key={game._id} game={game} />
+          {populatedGamesWithScores.map((game) => (
+            <GameCard
+              key={game._id}
+              game={game}
+              currentUserId={currentUser?.id}
+              initialRemainingScore={game.currentUserRemainingScore}
+            />
           ))}
         </div>
       )}
