@@ -350,104 +350,84 @@ export async function setUserGameScore(
 
   const gameScoreField = `gameScores.${gameId}`;
 
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const existingUser = await usersCollection.findOne(
-      { _id: new ObjectId(userId) },
-      { projection: { gameScores: 1 } },
-    );
+  const existingUser = await usersCollection.findOne(
+    { _id: new ObjectId(userId) },
+    { projection: { gameScores: 1 } },
+  );
 
-    if (!existingUser) {
-      return { success: false, error: "User not found" };
-    }
+  if (!existingUser) {
+    return { success: false, error: "User not found" };
+  }
 
-    const existingScores = normalizeGameScores(existingUser);
-    const currentScore = existingScores[gameId] ?? 0;
-    const delta = nextScore - currentScore;
-    const nextAllocatedScore = sumScores(existingScores) + delta;
+  const existingScores = normalizeGameScores(existingUser);
+  const currentScore = existingScores[gameId] ?? 0;
 
-    if (nextAllocatedScore > SCORE_BUDGET) {
-      return {
-        success: false,
-        error: `Total allocated score cannot exceed ${SCORE_BUDGET}`,
-      };
-    }
-
-    if (delta === 0) {
-      const allocatedScore = sumScores(existingScores);
-      return {
-        success: true,
-        data: {
-          score: currentScore,
-          allocatedScore,
-          remainingScore: SCORE_BUDGET - allocatedScore,
-        },
-      };
-    }
-
-    const scoreConsistencyFilter =
-      currentScore === 0
-        ? {
-            $or: [
-              { [gameScoreField]: { $exists: false } },
-              { [gameScoreField]: 0 },
-            ],
-          }
-        : { [gameScoreField]: currentScore };
-
-    const updateResult = await usersCollection.findOneAndUpdate(
-      {
-        _id: new ObjectId(userId),
-        ...scoreConsistencyFilter,
-        $expr: {
-          $lte: [
-            {
-              $add: [
-                {
-                  $sum: {
-                    $map: {
-                      input: { $objectToArray: { $ifNull: ["$gameScores", {}] } },
-                      as: "entry",
-                      in: "$$entry.v",
-                    },
-                  },
-                },
-                delta,
-              ],
-            },
-            SCORE_BUDGET,
-          ],
-        },
-      },
-      {
-        $inc: { [gameScoreField]: delta },
-        $set: { updatedAt: new Date() },
-      } as UpdateFilter<QUser>,
-      {
-        returnDocument: "after",
-        projection: { gameScores: 1 },
-      },
-    );
-
-    if (!updateResult) {
-      continue;
-    }
-
-    const gameScores = normalizeGameScores(updateResult);
-    const allocatedScore = sumScores(gameScores);
-
+  if (currentScore === nextScore) {
+    const allocatedScore = sumScores(existingScores);
     return {
       success: true,
       data: {
-        score: gameScores[gameId] ?? 0,
+        score: currentScore,
         allocatedScore,
         remainingScore: SCORE_BUDGET - allocatedScore,
       },
     };
   }
 
+  const updateResult = await usersCollection.findOneAndUpdate(
+    {
+      _id: new ObjectId(userId),
+      $expr: {
+        $lte: [
+          {
+            $add: [
+              {
+                $subtract: [
+                  {
+                    $sum: {
+                      $map: {
+                        input: { $objectToArray: { $ifNull: ["$gameScores", {}] } },
+                        as: "entry",
+                        in: "$$entry.v",
+                      },
+                    },
+                  },
+                  { $ifNull: [`$${gameScoreField}`, 0] },
+                ],
+              },
+              nextScore,
+            ],
+          },
+          SCORE_BUDGET,
+        ],
+      },
+    },
+    {
+      $set: { [gameScoreField]: nextScore, updatedAt: new Date() },
+    } as UpdateFilter<QUser>,
+    {
+      returnDocument: "after",
+      projection: { gameScores: 1 },
+    },
+  );
+
+  if (!updateResult) {
+    return {
+      success: false,
+      error: `Total allocated score cannot exceed ${SCORE_BUDGET}`,
+    };
+  }
+
+  const gameScores = normalizeGameScores(updateResult);
+  const allocatedScore = sumScores(gameScores);
+
   return {
-    success: false,
-    error: "Score update conflict, please retry",
+    success: true,
+    data: {
+      score: gameScores[gameId] ?? 0,
+      allocatedScore,
+      remainingScore: SCORE_BUDGET - allocatedScore,
+    },
   };
 }
 
