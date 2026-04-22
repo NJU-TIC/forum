@@ -1,12 +1,15 @@
 import JSZip, { type JSZipObject } from "jszip";
 import { parse } from "parse5";
 import type { DefaultTreeAdapterMap } from "parse5";
+import { minify } from "terser";
 
 type Element = DefaultTreeAdapterMap["element"];
 
 const HTML_FILE_PATTERN = /\.html?$/i;
+const JS_FILE_PATTERN = /\.(?:js|mjs)$/i;
 const JAVASCRIPT_PROTOCOL_ATTRS = new Set(["href", "src", "action", "formaction"]);
 const ALLOWED_SCRIPT_TYPES = new Set(["application/json", "application/ld+json"]);
+const JS_CHAR_LIMIT = 10000;
 
 export const DEFAULT_GAME_ZIP_LIMITS = {
   maxProcessingMs: 30000,
@@ -28,6 +31,19 @@ export interface GameZipViolation {
   message?: string;
 }
 
+export interface GameZipJsFile {
+  path: string;
+  minifiedChars: number;
+}
+
+export interface GameZipJsAnalysis {
+  totalMinifiedJsChars: number;
+  jsCharLimit: number;
+  excessChars: number;
+  scoreMultiplier: number;
+  jsFiles: GameZipJsFile[];
+}
+
 export interface HtmlZipAnalysisErrorResult {
   passed: false;
   violations: GameZipViolation[];
@@ -42,6 +58,7 @@ export interface GameZipEntry {
 export interface HtmlZipAnalysisPassedResult {
   passed: true;
   violations: GameZipViolation[];
+  jsAnalysis: GameZipJsAnalysis;
 }
 
 export interface HtmlZipAnalysisViolationResult {
@@ -74,7 +91,8 @@ export type GameZipAnalysisErrorCode =
   | "resource_limit_exceeded"
   | "analysis_timeout"
   | "missing_index_html"
-  | "invalid_html_file";
+  | "invalid_html_file"
+  | "js_minify_failed";
 
 export interface GameZipAnalysisError {
   code: GameZipAnalysisErrorCode;
@@ -104,6 +122,16 @@ type PathNormalizationResult =
   | (HtmlZipAnalysisErrorResult & {
       ok: false;
     });
+
+type GameZipJsAnalysisResult =
+  | {
+      ok: true;
+      data: GameZipJsAnalysis;
+    }
+  | {
+      ok: false;
+      error: GameZipAnalysisError;
+    };
 
 export function isStructuredUploadGameError(
   error: UploadGameActionError,
@@ -162,6 +190,7 @@ export async function analyzeGameZip(
     return {
       passed: true,
       violations: inspection.violations,
+      jsAnalysis: inspection.jsAnalysis,
     };
   }
 
@@ -285,10 +314,97 @@ export async function inspectGameZip(
     };
   }
 
+  const jsAnalysisResult = await analyzeMinifiedJs(entries, deadline);
+  if (!jsAnalysisResult.ok) {
+    return createAnalysisError(
+      jsAnalysisResult.error.code,
+      jsAnalysisResult.error.message,
+      jsAnalysisResult.error.file,
+    );
+  }
+
   return {
     passed: true,
     violations,
     entries,
+    jsAnalysis: jsAnalysisResult.data,
+  };
+}
+
+async function analyzeMinifiedJs(
+  entries: GameZipEntry[],
+  deadline: number,
+): Promise<GameZipJsAnalysisResult> {
+  const jsFiles: GameZipJsFile[] = [];
+
+  for (const entry of entries) {
+    if (!JS_FILE_PATTERN.test(entry.path)) {
+      continue;
+    }
+
+    const timeoutError = getTimeoutError(deadline);
+    if (timeoutError) {
+      return {
+        ok: false,
+        error: timeoutError,
+      };
+    }
+
+    try {
+      const minified = await minify(
+        { [entry.path]: entry.data.toString("utf8") },
+        {
+          compress: true,
+          mangle: true,
+        },
+      );
+
+      jsFiles.push({
+        path: entry.path,
+        minifiedChars: (minified.code ?? "").length,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "js_minify_failed",
+          message:
+            error instanceof Error
+              ? `压缩 JS 文件 "${entry.path}" 时失败：${error.message}`
+              : `压缩 JS 文件 "${entry.path}" 时失败`,
+          file: entry.path,
+        },
+      };
+    }
+
+    const postMinifyTimeoutError = getTimeoutError(deadline);
+    if (postMinifyTimeoutError) {
+      return {
+        ok: false,
+        error: postMinifyTimeoutError,
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    data: createJsAnalysis(jsFiles),
+  };
+}
+
+function createJsAnalysis(jsFiles: GameZipJsFile[]): GameZipJsAnalysis {
+  const totalMinifiedJsChars = jsFiles.reduce(
+    (total, file) => total + file.minifiedChars,
+    0,
+  );
+  const excessChars = Math.max(0, totalMinifiedJsChars - JS_CHAR_LIMIT);
+
+  return {
+    totalMinifiedJsChars,
+    jsCharLimit: JS_CHAR_LIMIT,
+    excessChars,
+    scoreMultiplier: Math.exp(-0.8 * (excessChars / JS_CHAR_LIMIT)),
+    jsFiles,
   };
 }
 
