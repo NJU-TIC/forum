@@ -9,6 +9,10 @@ import {
   type HtmlZipValidationError,
   type UploadGameActionError,
 } from "@/lib/validation/game-zip";
+import {
+  MAX_MODEL_WEIGHT_TOTAL_BYTES,
+  formatMegabytes,
+} from "@/lib/validation/model-weight";
 
 interface GameUploadFormProps {
   action: (
@@ -26,8 +30,14 @@ export function GameUploadForm({ action }: GameUploadFormProps) {
     null,
   );
 
+  const handleFileChange = (file: File | null) => {
+    setZipFile(file);
+    setError(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setError(null);
     setIsSaving(true);
 
@@ -52,6 +62,8 @@ export function GameUploadForm({ action }: GameUploadFormProps) {
 
   const validationError = getHtmlValidationError(error);
   const errorMessage = getErrorMessage(error);
+  const weightDetails = getWeightDetails(error);
+  const submitDisabled = isSaving;
 
   if (successData) {
     return (
@@ -79,6 +91,15 @@ export function GameUploadForm({ action }: GameUploadFormProps) {
               {validationError.violations.map((violation, index) => (
                 <li key={`${violation.file}-${violation.type}-${index}`}>
                   {violation.message || `${violation.file}: ${violation.type}`}
+                </li>
+              ))}
+            </ul>
+          )}
+          {weightDetails && weightDetails.files.length > 0 && (
+            <ul className="mt-3 list-disc pl-5 text-sm">
+              {weightDetails.files.map((f) => (
+                <li key={f.path}>
+                  {f.path} — {formatMegabytes(f.bytes)}
                 </li>
               ))}
             </ul>
@@ -136,7 +157,7 @@ export function GameUploadForm({ action }: GameUploadFormProps) {
           type="file"
           accept=".zip,application/zip,application/x-zip-compressed"
           onChange={(e) => {
-            setZipFile(e.target.files?.[0] || null);
+            handleFileChange(e.target.files?.[0] || null);
           }}
           disabled={isSaving}
           className="block w-full text-sm text-gray-700 border border-dashed border-gray-300 rounded-lg px-4 py-3 bg-white cursor-pointer hover:border-blue-400"
@@ -149,13 +170,15 @@ export function GameUploadForm({ action }: GameUploadFormProps) {
         )}
         <p className="mt-1 text-xs text-gray-500">
           The ZIP must contain an index.html at the root level. HTML files cannot contain inline JavaScript.
+          AI model weight files (.pth/.safetensors/.pt/.ckpt/.onnx/.gguf 等) combined size must be ≤{" "}
+          {formatMegabytes(MAX_MODEL_WEIGHT_TOTAL_BYTES)}.
         </p>
       </div>
 
       <div className="flex gap-4">
         <button
           type="submit"
-          disabled={isSaving}
+          disabled={submitDisabled}
           className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSaving ? "Uploading..." : "Upload Game"}
@@ -296,4 +319,14 @@ function getHtmlValidationError(
   }
 
   return error.code === "html_validation_failed" ? error : null;
+}
+
+function getWeightDetails(
+  error: UploadGameActionError | null,
+): { files: { path: string; bytes: number }[] } | null {
+  if (!error || typeof error === "string" || !("code" in error)) {
+    return null;
+  }
+  if (error.code !== "model_weight_total_too_large") return null;
+  return error.modelWeightDetails ?? null;
 }
