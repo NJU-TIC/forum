@@ -7,6 +7,7 @@ import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { Result } from "@/types/common/result";
 import { SGame } from "@/schema/game";
 import { MIN_GAME_SCORE, SCORE_BUDGET } from "@/lib/scoring";
+import { type UploadGameActionSuccessData } from "@/types/game-upload";
 import {
   createHtmlZipValidationError,
   hasGameZipAnalysisError,
@@ -53,7 +54,7 @@ function getContentType(filePath: string): string {
 
 export async function uploadGameAction(
   formData: FormData,
-): Promise<Result<{ game: SGame }, UploadGameActionError>> {
+): Promise<Result<UploadGameActionSuccessData, UploadGameActionError>> {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
 
   if (!currentUser) {
@@ -101,7 +102,7 @@ export async function uploadGameAction(
     };
   }
 
-  const { entries } = inspectionResult;
+  const { entries, jsAnalysis } = inspectionResult;
 
   // Save game metadata to database first
   const newGame = await createGame({
@@ -132,13 +133,14 @@ export async function uploadGameAction(
 
   return {
     success: true,
-    data: { game: newGame },
+    data: {
+      game: newGame,
+      jsAnalysis,
+    },
   };
 }
 
-export async function deleteGameAction(
-  gameId: string,
-): Promise<Result<null>> {
+export async function deleteGameAction(gameId: string): Promise<Result<null>> {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
 
   if (!currentUser) {

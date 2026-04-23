@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "bun test",
     "seed": "bun run scripts/seed.ts"
   },
   "dependencies": {
@@ -45,6 +46,7 @@
     "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
+    "terser": "5.46.1",
     "tiptap-markdown": "^0.9.0",
     "valibot": "^1.1.0"
   },

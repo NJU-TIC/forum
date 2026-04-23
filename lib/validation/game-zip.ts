@@ -1,12 +1,34 @@
 import JSZip, { type JSZipObject } from "jszip";
 import { parse } from "parse5";
 import type { DefaultTreeAdapterMap } from "parse5";
+import {
+  MAX_MODEL_WEIGHT_TOTAL_BYTES,
+  formatMegabytes,
+  isModelWeightFile,
+} from "@/lib/validation/model-weight";
+
+export {
+  MAX_MODEL_WEIGHT_TOTAL_BYTES,
+  MODEL_WEIGHT_EXTENSIONS,
+  isModelWeightFile,
+} from "@/lib/validation/model-weight";
+import { minify } from "terser";
 
 type Element = DefaultTreeAdapterMap["element"];
 
 const HTML_FILE_PATTERN = /\.html?$/i;
-const JAVASCRIPT_PROTOCOL_ATTRS = new Set(["href", "src", "action", "formaction"]);
-const ALLOWED_SCRIPT_TYPES = new Set(["application/json", "application/ld+json"]);
+const JS_FILE_PATTERN = /\.(?:js|mjs)$/i;
+const JAVASCRIPT_PROTOCOL_ATTRS = new Set([
+  "href",
+  "src",
+  "action",
+  "formaction",
+]);
+const ALLOWED_SCRIPT_TYPES = new Set([
+  "application/json",
+  "application/ld+json",
+]);
+const JS_CHAR_LIMIT = 10000;
 
 export const DEFAULT_GAME_ZIP_LIMITS = {
   maxProcessingMs: 30000,
@@ -28,6 +50,19 @@ export interface GameZipViolation {
   message?: string;
 }
 
+export interface GameZipJsFile {
+  path: string;
+  minifiedChars: number;
+}
+
+export interface GameZipJsAnalysis {
+  totalMinifiedJsChars: number;
+  jsCharLimit: number;
+  excessChars: number;
+  scoreMultiplier: number;
+  jsFiles: GameZipJsFile[];
+}
+
 export interface HtmlZipAnalysisErrorResult {
   passed: false;
   violations: GameZipViolation[];
@@ -42,6 +77,7 @@ export interface GameZipEntry {
 export interface HtmlZipAnalysisPassedResult {
   passed: true;
   violations: GameZipViolation[];
+  jsAnalysis: GameZipJsAnalysis;
 }
 
 export interface HtmlZipAnalysisViolationResult {
@@ -74,12 +110,21 @@ export type GameZipAnalysisErrorCode =
   | "resource_limit_exceeded"
   | "analysis_timeout"
   | "missing_index_html"
-  | "invalid_html_file";
+  | "invalid_html_file"
+  | "model_weight_total_too_large"
+  | "js_minify_failed";
+
+export interface ModelWeightOversizeDetails {
+  totalBytes: number;
+  limitBytes: number;
+  files: { path: string; bytes: number }[];
+}
 
 export interface GameZipAnalysisError {
   code: GameZipAnalysisErrorCode;
   message: string;
   file?: string;
+  modelWeightDetails?: ModelWeightOversizeDetails;
 }
 
 export type HtmlZipValidationError = HtmlZipAnalysisViolationResult & {
@@ -105,6 +150,16 @@ type PathNormalizationResult =
       ok: false;
     });
 
+type GameZipJsAnalysisResult =
+  | {
+      ok: true;
+      data: GameZipJsAnalysis;
+    }
+  | {
+      ok: false;
+      error: GameZipAnalysisError;
+    };
+
 export function isStructuredUploadGameError(
   error: UploadGameActionError,
 ): error is GameZipAnalysisError | HtmlZipValidationError {
@@ -121,6 +176,7 @@ function createAnalysisError(
   code: GameZipAnalysisErrorCode,
   message: string,
   file?: string,
+  extra?: Pick<GameZipAnalysisError, "modelWeightDetails">,
 ): HtmlZipAnalysisErrorResult {
   return {
     passed: false,
@@ -129,8 +185,23 @@ function createAnalysisError(
       code,
       message,
       file,
+      ...extra,
     },
   };
+}
+
+export function createModelWeightTotalTooLargeError(
+  details: ModelWeightOversizeDetails,
+): HtmlZipAnalysisErrorResult {
+  const message = `ZIP 中 AI 模型权重文件合计 ${formatMegabytes(details.totalBytes)}，超过上限 ${formatMegabytes(details.limitBytes)}`;
+  return createAnalysisError(
+    "model_weight_total_too_large",
+    message,
+    undefined,
+    {
+      modelWeightDetails: details,
+    },
+  );
 }
 
 export function createHtmlZipValidationError(
@@ -162,6 +233,7 @@ export async function analyzeGameZip(
     return {
       passed: true,
       violations: inspection.violations,
+      jsAnalysis: inspection.jsAnalysis,
     };
   }
 
@@ -191,10 +263,15 @@ export async function inspectGameZip(
   for (const [rawPath, zipEntry] of zipEntries) {
     const timeError = getTimeoutError(deadline);
     if (timeError) {
-      return createAnalysisError(timeError.code, timeError.message, timeError.file);
+      return createAnalysisError(
+        timeError.code,
+        timeError.message,
+        timeError.file,
+      );
     }
 
-    const originalPath = (zipEntry as ZipEntryWithSize).unsafeOriginalName ?? rawPath;
+    const originalPath =
+      (zipEntry as ZipEntryWithSize).unsafeOriginalName ?? rawPath;
     const normalizedPathResult = normalizeZipEntryPath(originalPath);
     if (!normalizedPathResult.ok) {
       return {
@@ -248,6 +325,11 @@ export async function inspectGameZip(
     );
   }
 
+  const weightCheck = checkModelWeightTotalSize(entries);
+  if (weightCheck) {
+    return createModelWeightTotalTooLargeError(weightCheck);
+  }
+
   const violations: GameZipViolation[] = [];
 
   for (const entry of entries) {
@@ -285,10 +367,97 @@ export async function inspectGameZip(
     };
   }
 
+  const jsAnalysisResult = await analyzeMinifiedJs(entries, deadline);
+  if (!jsAnalysisResult.ok) {
+    return createAnalysisError(
+      jsAnalysisResult.error.code,
+      jsAnalysisResult.error.message,
+      jsAnalysisResult.error.file,
+    );
+  }
+
   return {
     passed: true,
     violations,
     entries,
+    jsAnalysis: jsAnalysisResult.data,
+  };
+}
+
+async function analyzeMinifiedJs(
+  entries: GameZipEntry[],
+  deadline: number,
+): Promise<GameZipJsAnalysisResult> {
+  const jsFiles: GameZipJsFile[] = [];
+
+  for (const entry of entries) {
+    if (!JS_FILE_PATTERN.test(entry.path)) {
+      continue;
+    }
+
+    const timeoutError = getTimeoutError(deadline);
+    if (timeoutError) {
+      return {
+        ok: false,
+        error: timeoutError,
+      };
+    }
+
+    try {
+      const minified = await minify(
+        { [entry.path]: entry.data.toString("utf8") },
+        {
+          compress: true,
+          mangle: true,
+        },
+      );
+
+      jsFiles.push({
+        path: entry.path,
+        minifiedChars: (minified.code ?? "").length,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "js_minify_failed",
+          message:
+            error instanceof Error
+              ? `压缩 JS 文件 "${entry.path}" 时失败：${error.message}`
+              : `压缩 JS 文件 "${entry.path}" 时失败`,
+          file: entry.path,
+        },
+      };
+    }
+
+    const postMinifyTimeoutError = getTimeoutError(deadline);
+    if (postMinifyTimeoutError) {
+      return {
+        ok: false,
+        error: postMinifyTimeoutError,
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    data: createJsAnalysis(jsFiles),
+  };
+}
+
+function createJsAnalysis(jsFiles: GameZipJsFile[]): GameZipJsAnalysis {
+  const totalMinifiedJsChars = jsFiles.reduce(
+    (total, file) => total + file.minifiedChars,
+    0,
+  );
+  const excessChars = Math.max(0, totalMinifiedJsChars - JS_CHAR_LIMIT);
+
+  return {
+    totalMinifiedJsChars,
+    jsCharLimit: JS_CHAR_LIMIT,
+    excessChars,
+    scoreMultiplier: Math.exp(-0.8 * (excessChars / JS_CHAR_LIMIT)),
+    jsFiles,
   };
 }
 
@@ -420,8 +589,12 @@ function isJavascriptProtocol(value: string): boolean {
 }
 
 function unwrapSingleTopLevelDirectory(entries: GameZipEntry[]): void {
-  const topLevelDirectories = new Set(entries.map((entry) => entry.path.split("/")[0]));
-  const hasRootFile = entries.some((entry) => entry.path.split("/").length === 1);
+  const topLevelDirectories = new Set(
+    entries.map((entry) => entry.path.split("/")[0]),
+  );
+  const hasRootFile = entries.some(
+    (entry) => entry.path.split("/").length === 1,
+  );
 
   if (topLevelDirectories.size !== 1 || hasRootFile) {
     return;
@@ -435,13 +608,33 @@ function unwrapSingleTopLevelDirectory(entries: GameZipEntry[]): void {
   }
 }
 
-export function hasRootIndexHtml(entries: Pick<GameZipEntry, "path">[]): boolean {
+export function hasRootIndexHtml(
+  entries: Pick<GameZipEntry, "path">[],
+): boolean {
   return entries.some((entry) => /^index\.html?$/i.test(entry.path));
 }
 
-function normalizeZipEntryPath(
-  rawPath: string,
-): PathNormalizationResult {
+// Returns details when the cumulative size of AI model weight files inside
+// the ZIP exceeds MAX_MODEL_WEIGHT_TOTAL_BYTES; otherwise returns null.
+export function checkModelWeightTotalSize(
+  entries: { path: string; data: Buffer | Uint8Array }[],
+  limitBytes: number = MAX_MODEL_WEIGHT_TOTAL_BYTES,
+): ModelWeightOversizeDetails | null {
+  let totalBytes = 0;
+  const files: { path: string; bytes: number }[] = [];
+
+  for (const entry of entries) {
+    if (!isModelWeightFile(entry.path)) continue;
+    const bytes = entry.data.byteLength;
+    totalBytes += bytes;
+    files.push({ path: entry.path, bytes });
+  }
+
+  if (totalBytes <= limitBytes) return null;
+  return { totalBytes, limitBytes, files };
+}
+
+function normalizeZipEntryPath(rawPath: string): PathNormalizationResult {
   if (!rawPath) {
     return dangerousZipEntry("ZIP 条目路径为空");
   }
