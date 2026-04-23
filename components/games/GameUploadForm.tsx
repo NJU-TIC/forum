@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import JSZip, { type JSZipObject } from "jszip";
 import { type Result } from "@/types/common/result";
 import { SGame } from "@/schema/game";
 import {
@@ -12,65 +11,11 @@ import {
 import {
   MAX_MODEL_WEIGHT_TOTAL_BYTES,
   formatMegabytes,
-  isModelWeightFile,
 } from "@/lib/validation/model-weight";
 
 interface GameUploadFormProps {
   action: (formData: FormData) => Promise<Result<{ game: SGame }, UploadGameActionError>>;
   onSuccess: (data: { game: SGame }) => void;
-}
-
-interface WeightPrecheckResult {
-  totalBytes: number;
-  files: { path: string; bytes: number }[];
-  exceeded: boolean;
-}
-
-// JSZip exposes the uncompressed size of each entry through its internal
-// `_data.uncompressedSize` field. This has been stable across major JSZip
-// releases and avoids decompressing every weight file just to measure size.
-interface JSZipObjectWithInternal extends JSZipObject {
-  _data?: { uncompressedSize?: number };
-}
-
-async function measureEntryBytes(entry: JSZipObject): Promise<number> {
-  const internal = entry as JSZipObjectWithInternal;
-  const known = internal._data?.uncompressedSize;
-  if (typeof known === "number" && Number.isFinite(known) && known >= 0) {
-    return known;
-  }
-  const data = await entry.async("uint8array");
-  return data.byteLength;
-}
-
-async function precheckWeightFiles(file: File): Promise<WeightPrecheckResult | { error: string }> {
-  let zip: JSZip;
-  try {
-    zip = await JSZip.loadAsync(file);
-  } catch {
-    return { error: "无法解析 ZIP 文件，请确认文件未损坏" };
-  }
-
-  const weightEntries: JSZipObject[] = [];
-  for (const [, entry] of Object.entries(zip.files)) {
-    if (entry.dir) continue;
-    if (!isModelWeightFile(entry.name)) continue;
-    weightEntries.push(entry);
-  }
-
-  let totalBytes = 0;
-  const files: { path: string; bytes: number }[] = [];
-  for (const entry of weightEntries) {
-    const bytes = await measureEntryBytes(entry);
-    totalBytes += bytes;
-    files.push({ path: entry.name, bytes });
-  }
-
-  return {
-    totalBytes,
-    files,
-    exceeded: totalBytes > MAX_MODEL_WEIGHT_TOTAL_BYTES,
-  };
 }
 
 export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
@@ -79,38 +24,14 @@ export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
   const [zipFile, setZipFile] = useState<File | null>(null);
   const [error, setError] = useState<UploadGameActionError | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isPrechecking, setIsPrechecking] = useState(false);
-  const [weightPrecheck, setWeightPrecheck] = useState<WeightPrecheckResult | null>(null);
 
-  const handleFileChange = async (file: File | null) => {
+  const handleFileChange = (file: File | null) => {
     setZipFile(file);
-    setWeightPrecheck(null);
     setError(null);
-
-    if (!file) return;
-
-    setIsPrechecking(true);
-    const result = await precheckWeightFiles(file);
-    setIsPrechecking(false);
-
-    if ("error" in result) {
-      setError(result.error);
-      return;
-    }
-
-    setWeightPrecheck(result);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (weightPrecheck?.exceeded) {
-      setError(
-        `ZIP 中 AI 模型权重文件合计 ${formatMegabytes(weightPrecheck.totalBytes)}，` +
-          `超过上限 ${formatMegabytes(MAX_MODEL_WEIGHT_TOTAL_BYTES)}，请删减权重后重试`,
-      );
-      return;
-    }
 
     setError(null);
     setIsSaving(true);
@@ -136,7 +57,7 @@ export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
   const validationError = getHtmlValidationError(error);
   const errorMessage = getErrorMessage(error);
   const weightDetails = getWeightDetails(error);
-  const submitDisabled = isSaving || isPrechecking || (weightPrecheck?.exceeded ?? false);
+  const submitDisabled = isSaving;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -214,7 +135,7 @@ export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
           type="file"
           accept=".zip,application/zip,application/x-zip-compressed"
           onChange={(e) => {
-            void handleFileChange(e.target.files?.[0] || null);
+            handleFileChange(e.target.files?.[0] || null);
           }}
           disabled={isSaving}
           className="block w-full text-sm text-gray-700 border border-dashed border-gray-300 rounded-lg px-4 py-3 bg-white cursor-pointer hover:border-blue-400"
@@ -224,25 +145,6 @@ export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
           <p className="mt-2 text-sm text-gray-600">
             Selected: {zipFile.name} ({(zipFile.size / (1024 * 1024)).toFixed(2)} MB)
           </p>
-        )}
-        {isPrechecking && (
-          <p className="mt-2 text-sm text-gray-500">正在检查 ZIP 中的 AI 模型权重文件…</p>
-        )}
-        {weightPrecheck && !isPrechecking && (
-          <div
-            className={`mt-2 text-sm ${
-              weightPrecheck.exceeded ? "text-red-600" : "text-gray-600"
-            }`}
-          >
-            <p>
-              检测到 {weightPrecheck.files.length} 个 AI 模型权重文件，合计{" "}
-              {formatMegabytes(weightPrecheck.totalBytes)}（上限{" "}
-              {formatMegabytes(MAX_MODEL_WEIGHT_TOTAL_BYTES)}）。
-            </p>
-            {weightPrecheck.exceeded && (
-              <p className="mt-1">请删减权重文件后再上传。</p>
-            )}
-          </div>
         )}
         <p className="mt-1 text-xs text-gray-500">
           The ZIP must contain an index.html at the root level. HTML files cannot contain inline JavaScript.
@@ -257,7 +159,7 @@ export function GameUploadForm({ action, onSuccess }: GameUploadFormProps) {
           disabled={submitDisabled}
           className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isSaving ? "Uploading..." : isPrechecking ? "Checking..." : "Upload Game"}
+          {isSaving ? "Uploading..." : "Upload Game"}
         </button>
         <button
           type="button"
