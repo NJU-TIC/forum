@@ -2,22 +2,20 @@ import JSZip, { type JSZipObject } from "jszip";
 import { parse } from "parse5";
 import type { DefaultTreeAdapterMap } from "parse5";
 import {
+  ASSET_LIMIT_BYTES,
   MAX_MODEL_WEIGHT_TOTAL_BYTES,
   formatMegabytes,
   isModelWeightFile,
-} from "@/lib/validation/model-weight";
-
-export {
-  MAX_MODEL_WEIGHT_TOTAL_BYTES,
-  MODEL_WEIGHT_EXTENSIONS,
-  isModelWeightFile,
-} from "@/lib/validation/model-weight";
+} from "@/lib/validation/game-zip-limits";
 import { minify } from "terser";
+
+export * from "@/lib/validation/game-zip-limits";
 
 type Element = DefaultTreeAdapterMap["element"];
 
 const HTML_FILE_PATTERN = /\.html?$/i;
 const JS_FILE_PATTERN = /\.(?:js|mjs)$/i;
+const CSS_FILE_PATTERN = /\.css$/i;
 const JAVASCRIPT_PROTOCOL_ATTRS = new Set([
   "href",
   "src",
@@ -63,6 +61,19 @@ export interface GameZipJsAnalysis {
   jsFiles: GameZipJsFile[];
 }
 
+export interface GameZipAssetFile {
+  file: string;
+  sizeBytes: number;
+}
+
+export interface GameZipAssetAnalysis {
+  totalAssetBytes: number;
+  assetLimitBytes: number;
+  excessAssetBytes: number;
+  passed: boolean;
+  assetFiles: GameZipAssetFile[];
+}
+
 export interface HtmlZipAnalysisErrorResult {
   passed: false;
   violations: GameZipViolation[];
@@ -78,6 +89,7 @@ export interface HtmlZipAnalysisPassedResult {
   passed: true;
   violations: GameZipViolation[];
   jsAnalysis: GameZipJsAnalysis;
+  assetAnalysis: GameZipAssetAnalysis;
 }
 
 export interface HtmlZipAnalysisViolationResult {
@@ -112,6 +124,7 @@ export type GameZipAnalysisErrorCode =
   | "missing_index_html"
   | "invalid_html_file"
   | "model_weight_total_too_large"
+  | "asset_total_too_large"
   | "js_minify_failed";
 
 export interface ModelWeightOversizeDetails {
@@ -125,6 +138,7 @@ export interface GameZipAnalysisError {
   message: string;
   file?: string;
   modelWeightDetails?: ModelWeightOversizeDetails;
+  assetDetails?: GameZipAssetAnalysis;
 }
 
 export type HtmlZipValidationError = HtmlZipAnalysisViolationResult & {
@@ -176,7 +190,7 @@ function createAnalysisError(
   code: GameZipAnalysisErrorCode,
   message: string,
   file?: string,
-  extra?: Pick<GameZipAnalysisError, "modelWeightDetails">,
+  extra?: Pick<GameZipAnalysisError, "modelWeightDetails" | "assetDetails">,
 ): HtmlZipAnalysisErrorResult {
   return {
     passed: false,
@@ -187,6 +201,34 @@ function createAnalysisError(
       file,
       ...extra,
     },
+  };
+}
+
+export function analyzeAssetSize(
+  entries: { path: string; data: Buffer | Uint8Array }[],
+  limitBytes: number = ASSET_LIMIT_BYTES,
+): GameZipAssetAnalysis {
+  const assetFiles = entries
+    .filter(
+      (entry) => !isCodeFile(entry.path) && !isModelWeightFile(entry.path),
+    )
+    .map((entry) => ({
+      file: entry.path,
+      sizeBytes: entry.data.byteLength,
+    }))
+    .sort((a, b) => b.sizeBytes - a.sizeBytes || a.file.localeCompare(b.file));
+  const totalAssetBytes = assetFiles.reduce(
+    (total, file) => total + file.sizeBytes,
+    0,
+  );
+  const excessAssetBytes = Math.max(0, totalAssetBytes - limitBytes);
+
+  return {
+    totalAssetBytes,
+    assetLimitBytes: limitBytes,
+    excessAssetBytes,
+    passed: excessAssetBytes === 0,
+    assetFiles,
   };
 }
 
@@ -202,6 +244,15 @@ export function createModelWeightTotalTooLargeError(
       modelWeightDetails: details,
     },
   );
+}
+
+export function createAssetTotalTooLargeError(
+  details: GameZipAssetAnalysis,
+): HtmlZipAnalysisErrorResult {
+  const message = `美术资产和其他附件总大小为 ${formatMegabytes(details.totalAssetBytes)}，超过 ${formatMegabytes(details.assetLimitBytes)} 限制`;
+  return createAnalysisError("asset_total_too_large", message, undefined, {
+    assetDetails: details,
+  });
 }
 
 export function createHtmlZipValidationError(
@@ -234,6 +285,7 @@ export async function analyzeGameZip(
       passed: true,
       violations: inspection.violations,
       jsAnalysis: inspection.jsAnalysis,
+      assetAnalysis: inspection.assetAnalysis,
     };
   }
 
@@ -330,6 +382,11 @@ export async function inspectGameZip(
     return createModelWeightTotalTooLargeError(weightCheck);
   }
 
+  const assetAnalysis = analyzeAssetSize(entries);
+  if (!assetAnalysis.passed) {
+    return createAssetTotalTooLargeError(assetAnalysis);
+  }
+
   const violations: GameZipViolation[] = [];
 
   for (const entry of entries) {
@@ -381,7 +438,16 @@ export async function inspectGameZip(
     violations,
     entries,
     jsAnalysis: jsAnalysisResult.data,
+    assetAnalysis,
   };
+}
+
+function isCodeFile(path: string): boolean {
+  return (
+    HTML_FILE_PATTERN.test(path) ||
+    CSS_FILE_PATTERN.test(path) ||
+    JS_FILE_PATTERN.test(path)
+  );
 }
 
 async function analyzeMinifiedJs(

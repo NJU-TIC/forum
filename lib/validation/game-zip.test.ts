@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import JSZip from "jszip";
 import {
+  ASSET_LIMIT_BYTES,
+  analyzeAssetSize,
   checkModelWeightTotalSize,
   createModelWeightTotalTooLargeError,
   hasGameZipAnalysisError,
@@ -23,6 +25,72 @@ function fakeWeightBuffer(bytes: number): Buffer {
   for (let i = 0; i < bytes; i++) buf[i] = Math.floor(Math.random() * 256);
   return buf;
 }
+
+describe("analyzeAssetSize", () => {
+  test("returns 0 when there are no files", () => {
+    const result = analyzeAssetSize([]);
+
+    expect(result.passed).toBe(true);
+    expect(result.totalAssetBytes).toBe(0);
+    expect(result.assetLimitBytes).toBe(ASSET_LIMIT_BYTES);
+    expect(result.excessAssetBytes).toBe(0);
+    expect(result.assetFiles).toEqual([]);
+  });
+
+  test("ignores html, css, js, and mjs files", () => {
+    const result = analyzeAssetSize([
+      { path: "index.html", data: Buffer.alloc(1024) },
+      { path: "styles/main.css", data: Buffer.alloc(2048) },
+      { path: "scripts/main.js", data: Buffer.alloc(4096) },
+      { path: "scripts/module.mjs", data: Buffer.alloc(8192) },
+    ]);
+
+    expect(result.passed).toBe(true);
+    expect(result.totalAssetBytes).toBe(0);
+    expect(result.assetFiles).toEqual([]);
+  });
+
+  test("counts art assets, audio, and json content by uncompressed bytes", () => {
+    const result = analyzeAssetSize([
+      { path: "assets/logo.png", data: Buffer.alloc(1024) },
+      { path: "audio/theme.mp3", data: Buffer.alloc(2048) },
+      { path: "levels/story.json", data: Buffer.alloc(512) },
+    ]);
+
+    expect(result.passed).toBe(true);
+    expect(result.totalAssetBytes).toBe(3584);
+    expect(result.assetFiles).toEqual([
+      { file: "audio/theme.mp3", sizeBytes: 2048 },
+      { file: "assets/logo.png", sizeBytes: 1024 },
+      { file: "levels/story.json", sizeBytes: 512 },
+    ]);
+  });
+
+  test("excludes existing AI model weight files from asset size", () => {
+    const result = analyzeAssetSize([
+      { path: "weights/model.onnx", data: Buffer.alloc(1024 * 1024) },
+      { path: "assets/logo.png", data: Buffer.alloc(2048) },
+    ]);
+
+    expect(result.passed).toBe(true);
+    expect(result.totalAssetBytes).toBe(2048);
+    expect(result.assetFiles).toEqual([
+      { file: "assets/logo.png", sizeBytes: 2048 },
+    ]);
+  });
+
+  test("fails when multiple asset files exceed the asset limit", () => {
+    const result = analyzeAssetSize([
+      { path: "assets/a.png", data: Buffer.alloc(6 * 1024 * 1024) },
+      { path: "assets/b.wav", data: Buffer.alloc(5 * 1024 * 1024) },
+    ]);
+
+    expect(result.passed).toBe(false);
+    expect(result.totalAssetBytes).toBe(11 * 1024 * 1024);
+    expect(result.assetLimitBytes).toBe(ASSET_LIMIT_BYTES);
+    expect(result.excessAssetBytes).toBe(1024 * 1024);
+  });
+});
 
 describe("checkModelWeightTotalSize", () => {
   test("returns null when no weight files are present", () => {
@@ -158,17 +226,21 @@ describe("inspectGameZip with model weight files", () => {
     expect(result.error.modelWeightDetails!.files).toHaveLength(2);
   });
 
-  test("treats non-weight extensions as out of scope even if they are large", async () => {
-    // A 210 MB asset that is not a weight file should not trip the check.
+  test("rejects non-weight asset files over the asset limit", async () => {
     const zipBytes = await buildZip({
       "index.html": "<!doctype html><html><body></body></html>",
-      "assets/huge-texture.png": fakeWeightBuffer(
-        MAX_MODEL_WEIGHT_TOTAL_BYTES + 8 * 1024 * 1024,
-      ),
+      "assets/huge-texture.png": Buffer.alloc(ASSET_LIMIT_BYTES + 1),
     });
 
     const result = await inspectGameZip(zipBytes, { requireRootIndexHtml: true });
-    expect(hasGameZipAnalysisError(result)).toBe(false);
-    expect(result.passed).toBe(true);
+    expect(hasGameZipAnalysisError(result)).toBe(true);
+    if (!hasGameZipAnalysisError(result)) return;
+
+    expect(result.error.code).toBe("asset_total_too_large");
+    expect(result.error.message).toContain("美术资产和其他附件总大小");
+    expect(result.error.assetDetails?.totalAssetBytes).toBe(
+      ASSET_LIMIT_BYTES + 1,
+    );
+    expect(result.error.assetDetails?.assetLimitBytes).toBe(ASSET_LIMIT_BYTES);
   });
 });
