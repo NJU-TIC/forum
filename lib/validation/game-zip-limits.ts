@@ -1,6 +1,10 @@
-// Client-safe constants and helpers for AI model weight validation.
+// Client-safe constants and helpers for game ZIP validation.
 // Kept separate from lib/validation/game-zip.ts so the browser bundle does
-// not pull in parse5 / the Node-only ZIP inspection pipeline.
+// not pull in jszip / parse5 / terser.
+
+export const ASSET_LIMIT_BYTES = 10 * 1024 * 1024;
+
+export const MAX_MODEL_WEIGHT_TOTAL_BYTES = 200 * 1024 * 1024;
 
 export const MODEL_WEIGHT_EXTENSIONS: readonly string[] = [
   ".pth",
@@ -19,8 +23,6 @@ export const MODEL_WEIGHT_EXTENSIONS: readonly string[] = [
   ".npz",
   ".pkl",
 ];
-
-export const MAX_MODEL_WEIGHT_TOTAL_BYTES = 200 * 1024 * 1024;
 
 export function isModelWeightFile(path: string): boolean {
   const lower = path.toLowerCase();

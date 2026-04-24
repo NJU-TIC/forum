@@ -4,7 +4,7 @@ import {
   MODEL_WEIGHT_EXTENSIONS,
   formatMegabytes,
   isModelWeightFile,
-} from "./model-weight";
+} from "./game-zip-limits";
 
 describe("isModelWeightFile", () => {
   test("matches every declared extension case-insensitively", () => {

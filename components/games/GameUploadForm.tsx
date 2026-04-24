@@ -6,14 +6,14 @@ import { type Result } from "@/types/common/result";
 import { type UploadGameActionSuccessData } from "@/types/game-upload";
 import {
   ASSET_LIMIT_BYTES,
+  MAX_MODEL_WEIGHT_TOTAL_BYTES,
+  formatMegabytes,
+} from "@/lib/validation/game-zip-limits";
+import {
   isStructuredUploadGameError,
   type HtmlZipValidationError,
   type UploadGameActionError,
 } from "@/lib/validation/game-zip";
-import {
-  MAX_MODEL_WEIGHT_TOTAL_BYTES,
-  formatMegabytes,
-} from "@/lib/validation/model-weight";
 
 interface GameUploadFormProps {
   action: (
@@ -27,9 +27,8 @@ export function GameUploadForm({ action }: GameUploadFormProps) {
   const [zipFile, setZipFile] = useState<File | null>(null);
   const [error, setError] = useState<UploadGameActionError | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [successData, setSuccessData] = useState<UploadGameActionSuccessData | null>(
-    null,
-  );
+  const [successData, setSuccessData] =
+    useState<UploadGameActionSuccessData | null>(null);
 
   const handleFileChange = (file: File | null) => {
     setZipFile(file);
@@ -182,14 +181,15 @@ export function GameUploadForm({ action }: GameUploadFormProps) {
         />
         {zipFile && (
           <p className="mt-2 text-sm text-gray-600">
-            Selected: {zipFile.name} ({(zipFile.size / (1024 * 1024)).toFixed(2)} MB)
+            Selected: {zipFile.name} (
+            {(zipFile.size / (1024 * 1024)).toFixed(2)} MB)
           </p>
         )}
         <p className="mt-1 text-xs text-gray-500">
-          The ZIP must contain an index.html at the root level. HTML files cannot contain inline JavaScript.
-          AI model weight files (.pth/.safetensors/.pt/.ckpt/.onnx/.gguf 等) combined size must be ≤{" "}
-          {formatMegabytes(MAX_MODEL_WEIGHT_TOTAL_BYTES)}. 美术资产和其他附件总大小不得超过{" "}
-          {formatMegabytes(ASSET_LIMIT_BYTES)}.
+          压缩包的根目录必须含有index.html. HTML
+          文件不能有内嵌的javascript（需要写成独立的js文件）.
+          AI模型的权重不能超过 {formatMegabytes(MAX_MODEL_WEIGHT_TOTAL_BYTES)}.
+          美术资产和其他附件总大小不得超过 {formatMegabytes(ASSET_LIMIT_BYTES)}.
         </p>
       </div>
 
@@ -229,7 +229,8 @@ function UploadSummary({ data, onUploadAnother }: UploadSummaryProps) {
       <div className="rounded-xl border border-green-200 bg-green-50 p-6">
         <h2 className="text-xl font-semibold text-green-900">上传成功</h2>
         <p className="mt-2 text-sm text-green-800">
-          作品已上传完成，以下是 ZIP 中 JavaScript 压缩后的字符统计结果和资产大小统计结果。
+          作品已上传完成，以下是 ZIP 中 JavaScript
+          压缩后的字符统计结果和资产大小统计结果。
         </p>
       </div>
 
@@ -402,9 +403,7 @@ function getWeightDetails(
   return error.modelWeightDetails ?? null;
 }
 
-function getAssetDetails(
-  error: UploadGameActionError | null,
-): {
+function getAssetDetails(error: UploadGameActionError | null): {
   totalAssetBytes: number;
   assetLimitBytes: number;
   assetFiles: { file: string; sizeBytes: number }[];

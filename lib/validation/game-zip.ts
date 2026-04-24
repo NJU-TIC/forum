@@ -2,17 +2,14 @@ import JSZip, { type JSZipObject } from "jszip";
 import { parse } from "parse5";
 import type { DefaultTreeAdapterMap } from "parse5";
 import {
+  ASSET_LIMIT_BYTES,
   MAX_MODEL_WEIGHT_TOTAL_BYTES,
   formatMegabytes,
   isModelWeightFile,
-} from "@/lib/validation/model-weight";
-
-export {
-  MAX_MODEL_WEIGHT_TOTAL_BYTES,
-  MODEL_WEIGHT_EXTENSIONS,
-  isModelWeightFile,
-} from "@/lib/validation/model-weight";
+} from "@/lib/validation/game-zip-limits";
 import { minify } from "terser";
+
+export * from "@/lib/validation/game-zip-limits";
 
 type Element = DefaultTreeAdapterMap["element"];
 
@@ -30,8 +27,6 @@ const ALLOWED_SCRIPT_TYPES = new Set([
   "application/ld+json",
 ]);
 const JS_CHAR_LIMIT = 10000;
-
-export const ASSET_LIMIT_BYTES = 10 * 1024 * 1024;
 
 export const DEFAULT_GAME_ZIP_LIMITS = {
   maxProcessingMs: 30000,
@@ -214,7 +209,9 @@ export function analyzeAssetSize(
   limitBytes: number = ASSET_LIMIT_BYTES,
 ): GameZipAssetAnalysis {
   const assetFiles = entries
-    .filter((entry) => !isCodeFile(entry.path) && !isModelWeightFile(entry.path))
+    .filter(
+      (entry) => !isCodeFile(entry.path) && !isModelWeightFile(entry.path),
+    )
     .map((entry) => ({
       file: entry.path,
       sizeBytes: entry.data.byteLength,
