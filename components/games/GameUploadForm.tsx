@@ -5,6 +5,7 @@ import { useState } from "react";
 import { type Result } from "@/types/common/result";
 import { type UploadGameActionSuccessData } from "@/types/game-upload";
 import {
+  ASSET_LIMIT_BYTES,
   isStructuredUploadGameError,
   type HtmlZipValidationError,
   type UploadGameActionError,
@@ -63,6 +64,7 @@ export function GameUploadForm({ action }: GameUploadFormProps) {
   const validationError = getHtmlValidationError(error);
   const errorMessage = getErrorMessage(error);
   const weightDetails = getWeightDetails(error);
+  const assetDetails = getAssetDetails(error);
   const submitDisabled = isSaving;
 
   if (successData) {
@@ -103,6 +105,21 @@ export function GameUploadForm({ action }: GameUploadFormProps) {
                 </li>
               ))}
             </ul>
+          )}
+          {assetDetails && assetDetails.assetFiles.length > 0 && (
+            <div className="mt-3 text-sm">
+              <p>
+                资产总大小：{formatMegabytes(assetDetails.totalAssetBytes)} /{" "}
+                {formatMegabytes(assetDetails.assetLimitBytes)}
+              </p>
+              <ul className="mt-2 list-disc pl-5">
+                {assetDetails.assetFiles.slice(0, 5).map((file) => (
+                  <li key={file.file}>
+                    {file.file} — {formatMegabytes(file.sizeBytes)}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       )}
@@ -171,7 +188,8 @@ export function GameUploadForm({ action }: GameUploadFormProps) {
         <p className="mt-1 text-xs text-gray-500">
           The ZIP must contain an index.html at the root level. HTML files cannot contain inline JavaScript.
           AI model weight files (.pth/.safetensors/.pt/.ckpt/.onnx/.gguf 等) combined size must be ≤{" "}
-          {formatMegabytes(MAX_MODEL_WEIGHT_TOTAL_BYTES)}.
+          {formatMegabytes(MAX_MODEL_WEIGHT_TOTAL_BYTES)}. 美术资产和其他附件总大小不得超过{" "}
+          {formatMegabytes(ASSET_LIMIT_BYTES)}.
         </p>
       </div>
 
@@ -201,16 +219,69 @@ interface UploadSummaryProps {
 }
 
 function UploadSummary({ data, onUploadAnother }: UploadSummaryProps) {
-  const { game, jsAnalysis } = data;
-  const isOverLimit = jsAnalysis.excessChars > 0;
+  const { game, jsAnalysis, assetAnalysis } = data;
+  const isJsOverLimit = jsAnalysis.excessChars > 0;
+  const isAssetOverLimit = !assetAnalysis.passed;
+  const largestAssetFiles = assetAnalysis.assetFiles.slice(0, 5);
 
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-green-200 bg-green-50 p-6">
         <h2 className="text-xl font-semibold text-green-900">上传成功</h2>
         <p className="mt-2 text-sm text-green-800">
-          作品已上传完成，以下是 ZIP 中 JavaScript 压缩后的字符统计结果。
+          作品已上传完成，以下是 ZIP 中 JavaScript 压缩后的字符统计结果和资产大小统计结果。
         </p>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900">资产大小统计</h3>
+        <dl className="mt-4 grid gap-4 text-sm text-gray-700 sm:grid-cols-3">
+          <div className="rounded-lg bg-gray-50 p-4">
+            <dt className="text-gray-500">资产总大小</dt>
+            <dd className="mt-1 text-2xl font-semibold text-gray-900">
+              {formatMegabytes(assetAnalysis.totalAssetBytes)}
+            </dd>
+          </div>
+          <div className="rounded-lg bg-gray-50 p-4">
+            <dt className="text-gray-500">限制值</dt>
+            <dd className="mt-1 text-2xl font-semibold text-gray-900">
+              {formatMegabytes(assetAnalysis.assetLimitBytes)}
+            </dd>
+          </div>
+          <div className="rounded-lg bg-gray-50 p-4">
+            <dt className="text-gray-500">是否超限</dt>
+            <dd
+              className={`mt-1 text-2xl font-semibold ${
+                isAssetOverLimit ? "text-red-600" : "text-green-600"
+              }`}
+            >
+              {isAssetOverLimit ? "是" : "否"}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="mt-6">
+          <h4 className="text-sm font-semibold text-gray-900">最大资产文件</h4>
+          {largestAssetFiles.length > 0 ? (
+            <ul className="mt-3 divide-y divide-gray-100 rounded-lg border border-gray-100">
+              {largestAssetFiles.map((file) => (
+                <li
+                  key={file.file}
+                  className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
+                >
+                  <span className="break-all text-gray-700">{file.file}</span>
+                  <span className="shrink-0 font-medium text-gray-900">
+                    {formatMegabytes(file.sizeBytes)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-gray-500">
+              未发现计入资产大小的文件。
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -232,10 +303,10 @@ function UploadSummary({ data, onUploadAnother }: UploadSummaryProps) {
             <dt className="text-gray-500">是否超限</dt>
             <dd
               className={`mt-1 text-2xl font-semibold ${
-                isOverLimit ? "text-red-600" : "text-green-600"
+                isJsOverLimit ? "text-red-600" : "text-green-600"
               }`}
             >
-              {isOverLimit ? "是" : "否"}
+              {isJsOverLimit ? "是" : "否"}
             </dd>
           </div>
           <div className="rounded-lg bg-gray-50 p-4">
@@ -329,4 +400,18 @@ function getWeightDetails(
   }
   if (error.code !== "model_weight_total_too_large") return null;
   return error.modelWeightDetails ?? null;
+}
+
+function getAssetDetails(
+  error: UploadGameActionError | null,
+): {
+  totalAssetBytes: number;
+  assetLimitBytes: number;
+  assetFiles: { file: string; sizeBytes: number }[];
+} | null {
+  if (!error || typeof error === "string" || !("code" in error)) {
+    return null;
+  }
+  if (error.code !== "asset_total_too_large") return null;
+  return error.assetDetails ?? null;
 }

@@ -99,7 +99,7 @@ export async function uploadGameAction(
     };
   }
 
-  const { entries, jsAnalysis } = inspectionResult;
+  const { entries, jsAnalysis, assetAnalysis } = inspectionResult;
 
   // Save game metadata to database first
   const newGame = await createGame({
@@ -133,6 +133,7 @@ export async function uploadGameAction(
     data: {
       game: newGame,
       jsAnalysis,
+      assetAnalysis,
     },
   };
 }
