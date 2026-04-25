@@ -1,9 +1,12 @@
 "use server";
 
 import { createGame, findGameById, deleteGameById } from "@/lib/db/game";
+import { getGameTotalScores, setUserGameScore } from "@/lib/db";
 import { uploadGameFiles, deleteGameFiles } from "@/lib/cos";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { Result } from "@/types/common/result";
+import { SGame } from "@/schema/game";
+import { MIN_GAME_SCORE, SCORE_BUDGET } from "@/lib/scoring";
 import { type UploadGameActionSuccessData } from "@/types/game-upload";
 import {
   createHtmlZipValidationError,
@@ -138,9 +141,7 @@ export async function uploadGameAction(
   };
 }
 
-export async function deleteGameAction(
-  gameId: string,
-): Promise<Result<null>> {
+export async function deleteGameAction(gameId: string): Promise<Result<null>> {
   const currentUser = await requireAuthenticatedUser().catch(() => null);
 
   if (!currentUser) {
@@ -161,4 +162,49 @@ export async function deleteGameAction(
   await deleteGameById(gameId);
 
   return { success: true, data: null };
+}
+
+export async function setGameScoreAction(
+  gameId: string,
+  score: number,
+): Promise<
+  Result<{
+    score: number;
+    gameTotalScore: number;
+    allocatedScore: number;
+    remainingScore: number;
+  }>
+> {
+  const currentUser = await requireAuthenticatedUser().catch(() => null);
+  if (!currentUser) {
+    return { success: false, error: "You must be logged in to score games" };
+  }
+
+  if (!Number.isInteger(score)) {
+    return { success: false, error: "Score must be an integer" };
+  }
+
+  if (score < MIN_GAME_SCORE || score > SCORE_BUDGET) {
+    return {
+      success: false,
+      error: `Score must be between ${MIN_GAME_SCORE} and ${SCORE_BUDGET}`,
+    };
+  }
+
+  const updateResult = await setUserGameScore(currentUser.id, gameId, score);
+  if (!updateResult.success) {
+    return updateResult;
+  }
+
+  const gameTotalScoreMap = await getGameTotalScores([gameId]);
+
+  return {
+    success: true,
+    data: {
+      score: updateResult.data.score,
+      gameTotalScore: gameTotalScoreMap.get(gameId) ?? 0,
+      allocatedScore: updateResult.data.allocatedScore,
+      remainingScore: updateResult.data.remainingScore,
+    },
+  };
 }
