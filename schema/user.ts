@@ -1,4 +1,3 @@
-import { Document } from "mongodb";
 import * as v from "valibot";
 import { ObjectId as MongoObjectId } from "mongodb";
 
@@ -11,6 +10,7 @@ export const UserSchema = v.object({
   name: v.string(),
   email: v.string(),
   credentials: CredentialsSchema,
+  gameScores: v.optional(v.record(v.string(), v.number()), {}),
   isAdmin: v.boolean(),
   createdAt: v.date(),
   updatedAt: v.date(),

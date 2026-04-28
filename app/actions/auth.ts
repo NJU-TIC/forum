@@ -37,6 +37,7 @@ export async function verifyUserAction(token: string): Promise<Result<null>> {
     name: payload.name,
     email: payload.email,
     credentials: payload.credentials,
+    gameScores: {},
     isAdmin: false,
     createdAt: new Date(),
     updatedAt: new Date(),
