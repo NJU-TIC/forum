@@ -109,6 +109,7 @@ export async function uploadGameAction(
     author: currentUser.id,
     title: title.trim(),
     description: description.trim(),
+    scoreMultiplier: jsAnalysis.scoreMultiplier,
   });
 
   // Upload all files to COS under the game ID prefix

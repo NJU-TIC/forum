@@ -12,6 +12,7 @@ interface GameScoreControlProps {
   initialScore: number;
   initialTotalScore: number;
   initialRemainingScore: number;
+  scoreMultiplier?: number;
   className?: string;
 }
 
@@ -20,6 +21,7 @@ export function GameScoreControl({
   initialScore,
   initialTotalScore,
   initialRemainingScore,
+  scoreMultiplier = 1,
   className,
 }: GameScoreControlProps) {
   const [score, setScore] = useState(initialScore);
@@ -79,7 +81,7 @@ export function GameScoreControl({
 
     const optimisticDelta = nextScore - previousScore;
     setScore(nextScore);
-    setTotalScore((prev) => prev + optimisticDelta);
+    setTotalScore((prev) => prev + optimisticDelta * scoreMultiplier);
     setRemainingScore((prev) => prev - optimisticDelta);
 
     isSavingRef.current = true;
@@ -89,7 +91,7 @@ export function GameScoreControl({
       const result = await setGameScoreAction(gameId, nextScore);
       if (!result.success) {
         setScore(previousScore);
-        setTotalScore((prev) => prev - optimisticDelta);
+        setTotalScore((prev) => prev - optimisticDelta * scoreMultiplier);
         setRemainingScore((prev) => prev + optimisticDelta);
         toast.error("打分失败", { description: result.error });
         return;
@@ -114,6 +116,8 @@ export function GameScoreControl({
     });
   };
 
+  const displayTotal = Math.round(totalScore * 100) / 100;
+
   return (
     <div
       className={className}
@@ -123,7 +127,12 @@ export function GameScoreControl({
     >
       <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
         <span>
-          总分：<span className="font-semibold text-gray-900">{totalScore}</span>
+          总分：<span className="font-semibold text-gray-900">{displayTotal}</span>
+          {scoreMultiplier < 1 && (
+            <span className="ml-1 text-xs text-amber-600">
+              （系数 {scoreMultiplier.toFixed(4)}）
+            </span>
+          )}
         </span>
         <span>你剩余：{remainingScore}</span>
       </div>

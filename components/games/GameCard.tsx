@@ -30,6 +30,8 @@ export function GameCard({
   initialRemainingScore = 0,
 }: GameCardProps) {
   const router = useRouter();
+  const scoreMultiplier = game.scoreMultiplier ?? 1;
+  const displayTotal = Math.round((game.gameTotalScore ?? 0) * 100) / 100;
 
   return (
     <Card
@@ -61,13 +63,17 @@ export function GameCard({
             initialScore={game.currentUserScore ?? 0}
             initialTotalScore={game.gameTotalScore ?? 0}
             initialRemainingScore={initialRemainingScore}
+            scoreMultiplier={scoreMultiplier}
           />
         ) : (
           <div className="text-sm text-gray-600">
             总分：
-            <span className="font-semibold text-gray-900">
-              {game.gameTotalScore ?? 0}
-            </span>
+            <span className="font-semibold text-gray-900">{displayTotal}</span>
+            {scoreMultiplier < 1 && (
+              <span className="ml-1 text-xs text-amber-600">
+                （系数 {scoreMultiplier.toFixed(4)}）
+              </span>
+            )}
           </div>
         )}
       </div>

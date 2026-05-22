@@ -50,11 +50,20 @@ export default async function GamePage({
               initialScore={currentUserScore}
               initialTotalScore={gameTotalScore}
               initialRemainingScore={currentUserRemainingScore}
+              scoreMultiplier={game.scoreMultiplier ?? 1}
             />
           </div>
         ) : (
           <p className="mt-4 text-sm text-gray-600">
-            总分：<span className="font-semibold text-gray-900">{gameTotalScore}</span>
+            总分：
+            <span className="font-semibold text-gray-900">
+              {Math.round(gameTotalScore * 100) / 100}
+            </span>
+            {(game.scoreMultiplier ?? 1) < 1 && (
+              <span className="ml-1 text-xs text-amber-600">
+                （系数 {(game.scoreMultiplier ?? 1).toFixed(4)}）
+              </span>
+            )}
           </p>
         )}
       </div>

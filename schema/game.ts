@@ -7,6 +7,7 @@ export const GameSchema = v.object({
   author: ObjectID,
   title: v.string(),
   description: v.string(),
+  scoreMultiplier: v.optional(v.number(), 1),
   createdAt: v.date(),
   updatedAt: v.date(),
 });

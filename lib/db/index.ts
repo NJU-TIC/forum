@@ -321,10 +321,33 @@ export async function getGameTotalScores(
 
   const aggregatedScores = await usersCollection.aggregate(pipeline).toArray();
 
-  return aggregatedScores.reduce<Map<string, number>>((map, entry) => {
-    map.set(entry._id as string, entry.totalScore as number);
-    return map;
-  }, new Map());
+  const rawTotals = new Map<string, number>();
+  for (const entry of aggregatedScores) {
+    rawTotals.set(entry._id as string, entry.totalScore as number);
+  }
+
+  // Fetch scoreMultiplier for each game and apply it
+  const ids = gameIds ?? Array.from(rawTotals.keys());
+  const multiplierMap = new Map<string, number>();
+  if (ids.length > 0) {
+    const gamesCollection = await getCollection("games");
+    const games = await gamesCollection
+      .find(
+        { _id: { $in: ids.map((id) => new ObjectId(id)) } },
+        { projection: { scoreMultiplier: 1 } },
+      )
+      .toArray();
+    for (const game of games) {
+      multiplierMap.set(game._id.toString(), (game.scoreMultiplier as number) ?? 1);
+    }
+  }
+
+  const result = new Map<string, number>();
+  for (const [id, rawTotal] of rawTotals) {
+    const multiplier = multiplierMap.get(id) ?? 1;
+    result.set(id, rawTotal * multiplier);
+  }
+  return result;
 }
 
 export async function setUserGameScore(

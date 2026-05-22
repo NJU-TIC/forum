@@ -19,11 +19,13 @@ export function createValidatedGame(data: {
   author: string;
   title: string;
   description: string;
+  scoreMultiplier?: number;
 }) {
   const gameData = {
     author: data.author,
     title: data.title,
     description: data.description,
+    scoreMultiplier: data.scoreMultiplier ?? 1,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

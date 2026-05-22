@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { SGame } from "@/schema/game";
 
 export async function createGame(
-  gameData: { author: string; title: string; description: string },
+  gameData: { author: string; title: string; description: string; scoreMultiplier?: number },
 ): Promise<SGame> {
   const validatedGame = createValidatedGame(gameData);
 
@@ -17,6 +17,18 @@ export async function createGame(
     ...validatedGame,
     _id: gameId,
   };
+}
+
+export async function updateGameScoreMultiplier(
+  gameId: string,
+  scoreMultiplier: number,
+): Promise<boolean> {
+  const gamesCollection = await getCollection("games");
+  const result = await gamesCollection.updateOne(
+    { _id: new ObjectId(gameId) },
+    { $set: { scoreMultiplier, updatedAt: new Date() } },
+  );
+  return result.modifiedCount > 0;
 }
 
 export async function findAllGames(): Promise<SGame[]> {

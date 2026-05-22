@@ -58,6 +58,44 @@ export async function uploadGameFiles(
   );
 }
 
+export async function listGameFiles(gameId: string): Promise<string[]> {
+  const objects = await new Promise<COS.CosObject[]>((resolve, reject) => {
+    cos.getBucket(
+      {
+        Bucket,
+        Region,
+        Prefix: `${gameId}/`,
+      },
+      (err, data) => {
+        if (err) reject(err);
+        else resolve(data.Contents);
+      },
+    );
+  });
+
+  return (objects ?? []).map((obj) => obj.Key.slice(`${gameId}/`.length));
+}
+
+export async function getGameFileContent(
+  gameId: string,
+  filePath: string,
+): Promise<Buffer> {
+  const key = `${gameId}/${filePath}`;
+  return new Promise<Buffer>((resolve, reject) => {
+    cos.getObject(
+      {
+        Bucket,
+        Region,
+        Key: key,
+      },
+      (err, data) => {
+        if (err) reject(err);
+        else resolve(data.Body as Buffer);
+      },
+    );
+  });
+}
+
 export async function deleteGameFiles(gameId: string): Promise<void> {
   // List all objects with the game prefix
   const objects = await new Promise<COS.CosObject[]>(
